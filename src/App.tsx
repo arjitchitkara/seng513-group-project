@@ -1,14 +1,21 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Routes, Route } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
+
+// Core Pages
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+
+// New Pages
+import SettingsPage from "./pages/SettingsPage";
+import RecentActivityPage from "./pages/RecentActivityPage";
+import UploadDocumentPage from "./pages/UploadDocumentPage";
+import MyDocumentsPage from "./pages/MyDocumentsPage";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -32,7 +39,7 @@ const pageVariants = {
     transition: {
       duration: 0.4,
       ease: [0.22, 1, 0.36, 1],
-    }
+    },
   },
   exit: {
     opacity: 0,
@@ -40,8 +47,8 @@ const pageVariants = {
     transition: {
       duration: 0.3,
       ease: [0.22, 1, 0.36, 1],
-    }
-  }
+    },
+  },
 };
 
 const App = () => (
@@ -51,6 +58,7 @@ const App = () => (
       <Sonner position="top-right" theme="light" />
       <AnimatePresence mode="wait">
         <Routes>
+          {/* Landing Page */}
           <Route 
             path="/" 
             element={
@@ -66,6 +74,8 @@ const App = () => (
               </motion.div>
             } 
           />
+
+          {/* Auth */}
           <Route 
             path="/auth/:mode?" 
             element={
@@ -81,6 +91,8 @@ const App = () => (
               </motion.div>
             } 
           />
+
+          {/* Dashboard */}
           <Route 
             path="/dashboard" 
             element={
@@ -96,6 +108,73 @@ const App = () => (
               </motion.div>
             } 
           />
+
+          {/* New Pages */}
+          <Route 
+            path="/settings" 
+            element={
+              <motion.div
+                key="settings"
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={pageVariants}
+                className="min-h-screen"
+              >
+                <SettingsPage />
+              </motion.div>
+            }
+          />
+
+          <Route 
+            path="/activity" 
+            element={
+              <motion.div
+                key="activity"
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={pageVariants}
+                className="min-h-screen"
+              >
+                <RecentActivityPage />
+              </motion.div>
+            }
+          />
+
+          <Route 
+            path="/upload" 
+            element={
+              <motion.div
+                key="upload"
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={pageVariants}
+                className="min-h-screen"
+              >
+                <UploadDocumentPage />
+              </motion.div>
+            }
+          />
+
+          <Route 
+            path="/documents" 
+            element={
+              <motion.div
+                key="documents"
+                initial="initial"
+                animate="animate"
+                exit="exit"
+                variants={pageVariants}
+                className="min-h-screen"
+              >
+                <MyDocumentsPage />
+              </motion.div>
+            }
+          />
+
+          {/* 404 Fallback */}
           <Route 
             path="*" 
             element={
