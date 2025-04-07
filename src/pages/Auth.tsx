@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -7,6 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { Check, EyeOff, Eye, ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/hooks/use-toast';
 
 const Auth = () => {
   const { mode = 'login' } = useParams<{ mode: 'login' | 'register' | string }>();
@@ -25,7 +26,9 @@ const Auth = () => {
     confirmPassword: '',
     fullName: ''
   });
-  const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { signIn, signUp, loading } = useAuth();
+  const { toast } = useToast();
 
   useEffect(() => {
     // Reset form state when mode changes
@@ -42,7 +45,7 @@ const Auth = () => {
       confirmPassword: '',
       fullName: ''
     });
-    setSubmitted(false);
+    setIsSubmitting(false);
   }, [mode]);
 
   const validateForm = () => {
@@ -98,18 +101,24 @@ const Auth = () => {
     setFormData({ ...formData, [name]: value });
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
-      setSubmitted(true);
-      // In a real app, this would call an API to authenticate or register
-      console.log('Form submitted:', formData);
+      setIsSubmitting(true);
       
-      // Simulate successful auth
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 1500);
+      try {
+        if (mode === 'login') {
+          await signIn(formData.email, formData.password);
+        } else if (mode === 'register') {
+          await signUp(formData.email, formData.password, formData.fullName);
+        }
+      } catch (error) {
+        // Error handling is done in the auth context
+        console.error('Auth error:', error);
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -246,79 +255,52 @@ const Auth = () => {
               </div>
             )}
             
-            {mode === 'register' && (
-              <div className="space-y-2">
-                <Label>Select Role</Label>
-                <div className="flex space-x-3">
-                  {['user', 'moderator', 'admin'].map((role) => (
-                    <label
-                      key={role}
-                      className={`flex-1 flex items-center justify-center border rounded-md p-2 cursor-pointer transition-all ${
-                        formData.role === role
-                          ? 'bg-primary/20 border-primary'
-                          : 'bg-white/10 border-white/10 hover:bg-white/20'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="role"
-                        value={role}
-                        checked={formData.role === role}
-                        onChange={handleInputChange}
-                        className="sr-only"
-                      />
-                      <span className="capitalize text-sm">{role}</span>
-                      {formData.role === role && (
-                        <Check className="h-4 w-4 ml-2 text-primary" />
-                      )}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            {mode === 'login' && (
-              <div className="text-right">
-                <Link
-                  to="/auth/forgot-password"
-                  className="text-xs text-primary hover:text-primary/80 transition-colors"
-                >
-                  Forgot Password?
-                </Link>
-              </div>
-            )}
-            
             <Button
               type="submit"
-              className="w-full mt-6"
-              disabled={submitted}
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold"
+              disabled={isSubmitting || loading}
             >
-              {submitted ? (
+              {isSubmitting || loading ? (
                 <div className="flex items-center">
                   <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                   </svg>
-                  {mode === 'login' ? 'Signing in...' : 'Creating account...'}
+                  Processing...
                 </div>
-              ) : (
-                <>{mode === 'login' ? 'Sign In' : 'Create Account'}</>
-              )}
+              ) : mode === 'login' ? 'Sign In' : 'Create Account'}
             </Button>
+            
+            <div className="text-center mt-4">
+              <p className="text-sm text-muted-foreground">
+                {mode === 'login' 
+                  ? "Don't have an account?" 
+                  : "Already have an account?"}
+                <Button 
+                  variant="link" 
+                  className="text-primary hover:text-primary/80 p-0 h-auto font-medium ml-1"
+                  onClick={handleToggleMode}
+                >
+                  {mode === 'login' ? 'Sign Up' : 'Sign In'}
+                </Button>
+              </p>
+            </div>
+            
+            {mode === 'login' && (
+              <div className="text-center mt-1">
+                <Button 
+                  variant="link" 
+                  className="text-xs text-muted-foreground hover:text-primary p-0 h-auto"
+                  onClick={() => toast({
+                    title: 'Password Reset',
+                    description: 'This feature is coming soon. Please contact support for assistance.',
+                  })}
+                >
+                  Forgot your password?
+                </Button>
+              </div>
+            )}
           </form>
-          
-          <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground">
-              {mode === 'login' ? "Don't have an account?" : "Already have an account?"}
-              <button
-                type="button"
-                onClick={handleToggleMode}
-                className="ml-1 text-primary hover:text-primary/80 transition-colors"
-              >
-                {mode === 'login' ? 'Sign Up' : 'Sign In'}
-              </button>
-            </p>
-          </div>
         </GlassMorphism>
       </motion.div>
     </div>
