@@ -77,7 +77,7 @@ const Dashboard = () => {
   const { user, signOut } = useAuth();
   
   const userName = user?.user_metadata?.full_name || 'User';
-  const userRole = user?.user_metadata?.role || 'Student';
+  const userRole = user?.user_metadata?.role || 'USER';
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
