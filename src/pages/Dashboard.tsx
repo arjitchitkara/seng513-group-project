@@ -252,6 +252,7 @@ const Dashboard = () => {
                 { name: 'Bookmarks', icon: Bookmark, path: '/bookmarks' },
                 { name: 'Recent Activity', icon: Clock, path: '/activity' },
                 { name: 'Settings', icon: Settings, path: '/settings' },
+                { name: 'Upload Document', icon: Upload, path: '/upload' },
               ].map((item) => (
                 <Link
                   key={item.name}
@@ -354,11 +355,16 @@ const Dashboard = () => {
           {/* Recent Documents & Upload Button */}
           <div className="flex flex-wrap items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Recent Documents</h2>
-            <Button className="bg-primary hover:bg-primary/90">
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Document
-            </Button>
+            <Link
+              to="/upload"
+              className="inline-flex items-center space-x-2 p-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Upload Document</span>
+            </Link>
           </div>
+
+          
 
           {/* Document List */}
           <div className="space-y-4 mb-8">
