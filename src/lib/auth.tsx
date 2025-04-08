@@ -59,11 +59,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Create profile after successful signup - using the new user's ID from the response
       if (data.user) {
+        // Create Supabase profile
         const { error: profileError } = await supabase
           .from('profiles')
           .insert([{ user_id: data.user.id }]);
 
         if (profileError) console.error('Error creating profile:', profileError);
+        
+        // Create user in Prisma database
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+          const response = await fetch(`${apiUrl}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: data.user.id,
+              email: email,
+              fullName: fullName,
+            }),
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('Error creating user in Prisma database:', errorData);
+          }
+        } catch (dbError) {
+          console.error('Failed to create user in Prisma database:', dbError);
+        }
       }
 
       toast({
