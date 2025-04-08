@@ -1,0 +1,218 @@
+import React, { createContext, useContext, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Session, User } from '@supabase/supabase-js';
+import { supabase } from './supabase';
+import { useToast } from '@/hooks/use-toast';
+
+type AuthContextType = {
+  session: Session | null;
+  user: User | null;
+  loading: boolean;
+  signUp: (email: string, password: string, fullName: string) => Promise<void>;
+  signIn: (email: string, password: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  updateProfile: (data: { fullName?: string; avatar?: string }) => Promise<void>;
+};
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Set initial session and user
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const signUp = async (email: string, password: string, fullName: string) => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+          },
+        },
+      });
+
+      if (error) throw error;
+      
+      // Create profile after successful signup - using the new user's ID from the response
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([{ user_id: data.user.id }]);
+
+        if (profileError) console.error('Error creating profile:', profileError);
+      }
+
+      toast({
+        title: 'Account created successfully!',
+        description: 'Please check your email to confirm your account.',
+      });
+      
+      navigate('/auth/login');
+    } catch (error: any) {
+      toast({
+        title: 'Error creating account',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signIn = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Welcome back!',
+        description: 'You have successfully signed in.',
+      });
+      
+      navigate('/dashboard');
+    } catch (error: any) {
+      toast({
+        title: 'Error signing in',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signOut = async () => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
+      navigate('/');
+    } catch (error: any) {
+      toast({
+        title: 'Error signing out',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const resetPassword = async (email: string) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) throw error;
+      
+      toast({
+        title: 'Password reset email sent',
+        description: 'Check your email for a password reset link.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error resetting password',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const updateProfile = async (data: { fullName?: string; avatar?: string }) => {
+    try {
+      setLoading(true);
+      
+      if (!user) throw new Error('User not authenticated');
+      
+      // Update auth metadata if fullName provided
+      if (data.fullName) {
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: { full_name: data.fullName }
+        });
+        
+        if (updateError) throw updateError;
+      }
+      
+      // Update profile
+      const updates = {
+        ...(data.fullName && { full_name: data.fullName }),
+        ...(data.avatar && { avatar: data.avatar }),
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (Object.keys(updates).length > 0) {
+        const { error } = await supabase
+          .from('profiles')
+          .update(updates)
+          .eq('user_id', user.id);
+          
+        if (error) throw error;
+      }
+      
+      toast({
+        title: 'Profile updated',
+        description: 'Your profile has been updated successfully.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error updating profile',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const value = {
+    session,
+    user,
+    loading,
+    signUp,
+    signIn,
+    signOut,
+    resetPassword,
+    updateProfile,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}; 
