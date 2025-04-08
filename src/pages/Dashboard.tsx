@@ -25,6 +25,7 @@ import {
   Lightbulb,
   ClipboardList,
 } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
 
 /* ----------------------------------
    Sample document & stats data
@@ -187,6 +188,10 @@ const additionalSections = [
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const { user, signOut } = useAuth();
+  
+  const userName = user?.user_metadata?.full_name || 'User';
+  const userRole = user?.user_metadata?.role || 'USER';
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -232,8 +237,8 @@ const Dashboard = () => {
                 <User className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="font-medium">John Doe</p>
-                <p className="text-xs text-muted-foreground">Student</p>
+                <p className="font-medium">{userName}</p>
+                <p className="text-xs text-muted-foreground">{userRole}</p>
               </div>
             </div>
 
@@ -267,7 +272,10 @@ const Dashboard = () => {
           </div>
 
           <div className="mt-auto p-6 border-t border-border/50">
-            <button className="flex items-center space-x-3 w-full p-3 rounded-md text-foreground/70 hover:bg-secondary hover:text-foreground transition-all">
+            <button 
+              onClick={signOut}
+              className="flex items-center space-x-3 w-full p-3 rounded-md text-foreground/70 hover:bg-secondary hover:text-foreground transition-all"
+            >
               <LogOut className="h-5 w-5" />
               <span>Sign Out</span>
             </button>
@@ -311,7 +319,7 @@ const Dashboard = () => {
                 <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
                   <User className="h-4 w-4 text-primary" />
                 </div>
-                <span className="text-sm font-medium">John</span>
+                <span className="text-sm font-medium">{userName.split(' ')[0]}</span>
               </button>
             </div>
           </div>
@@ -320,10 +328,8 @@ const Dashboard = () => {
         {/* Welcome Section */}
         <div className="p-6">
           <div className="mb-8">
-            <h1 className="text-2xl font-bold mb-2">Welcome back, John!</h1>
-            <p className="text-muted-foreground">
-              Here’s an overview of your academic resources and activities.
-            </p>
+            <h1 className="text-2xl font-bold mb-2">Welcome back, {userName.split(' ')[0]}!</h1>
+            <p className="text-muted-foreground">Here's an overview of your academic resources and activities.</p>
           </div>
 
           {/* Quick Stats */}
