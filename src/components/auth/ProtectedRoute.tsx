@@ -3,14 +3,25 @@ import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import { Loader } from "lucide-react";
 
+// Define Role type if not available elsewhere
+type Role = 'USER' | 'MODERATOR' | 'ADMIN';
+
 interface ProtectedRouteProps {
   children: ReactNode;
-  requiredRole?: 'USER' | 'MODERATOR' | 'ADMIN';
+  requiredRole?: Role;
 }
 
 export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   const location = useLocation();
+
+  // Helper function to check if user has sufficient permissions
+  const hasRequiredRole = (userRole: string, requiredRole: Role): boolean => {
+    if (userRole === requiredRole) return true;
+    if (userRole === 'ADMIN') return true; // Admin can access everything
+    if (userRole === 'MODERATOR' && requiredRole === 'USER') return true;
+    return false;
+  };
 
   // If authentication state is still loading, show loading indicator
   if (loading) {
@@ -33,10 +44,7 @@ export const ProtectedRoute = ({ children, requiredRole }: ProtectedRouteProps) 
   if (requiredRole) {
     const userRole = user.user_metadata?.role || 'USER';
     
-    if (userRole !== requiredRole && 
-        !(userRole === 'ADMIN' && requiredRole === 'MODERATOR') && 
-        !(userRole === 'ADMIN' && requiredRole === 'USER') &&
-        !(userRole === 'MODERATOR' && requiredRole === 'USER')) {
+    if (!hasRequiredRole(userRole, requiredRole)) {
       // If user doesn't have the required role, redirect to dashboard with insufficient permissions
       return <Navigate to="/dashboard" state={{ insufficientPermissions: true }} replace />;
     }
