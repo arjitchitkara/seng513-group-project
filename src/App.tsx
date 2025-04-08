@@ -11,6 +11,12 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 
+// New Pages
+import SettingsPage from "./pages/SettingsPage";
+import RecentActivityPage from "./pages/RecentActivityPage";
+import UploadDocumentPage from "./pages/UploadDocumentPage";
+import MyDocumentsPage from "./pages/MyDocumentsPage";
+
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,7 +39,7 @@ const pageVariants = {
     transition: {
       duration: 0.4,
       ease: [0.22, 1, 0.36, 1],
-    }
+    },
   },
   exit: {
     opacity: 0,
@@ -41,8 +47,8 @@ const pageVariants = {
     transition: {
       duration: 0.3,
       ease: [0.22, 1, 0.36, 1],
-    }
-  }
+    },
+  },
 };
 
 const App = () => (
@@ -96,6 +102,74 @@ const App = () => (
                 >
                   <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <motion.div
+                  key="settings"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/activity" 
+              element={
+                <motion.div
+                  key="activity"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <RecentActivityPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/upload" 
+              element={
+                <motion.div
+                  key="upload"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <UploadDocumentPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/documents" 
+              element={
+                <motion.div
+                  key="documents"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <MyDocumentsPage />
                   </ProtectedRoute>
                 </motion.div>
               } 
