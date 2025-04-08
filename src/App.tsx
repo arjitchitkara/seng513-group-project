@@ -4,8 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Routes, Route } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-
-// Core Pages
+import { AuthProvider } from "./lib/auth";
+import ProtectedRoute from "./components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -53,146 +53,146 @@ const pageVariants = {
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner position="top-right" theme="light" />
-      <AnimatePresence mode="wait">
-        <Routes>
-          {/* Landing Page */}
-          <Route 
-            path="/" 
-            element={
-              <motion.div
-                key="home"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                className="min-h-screen"
-              >
-                <Index />
-              </motion.div>
-            } 
-          />
-
-          {/* Auth */}
-          <Route 
-            path="/auth/:mode?" 
-            element={
-              <motion.div
-                key="auth"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                className="min-h-screen"
-              >
-                <Auth />
-              </motion.div>
-            } 
-          />
-
-          {/* Dashboard */}
-          <Route 
-            path="/dashboard" 
-            element={
-              <motion.div
-                key="dashboard"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                className="min-h-screen"
-              >
-                <Dashboard />
-              </motion.div>
-            } 
-          />
-
-          {/* New Pages */}
-          <Route 
-            path="/settings" 
-            element={
-              <motion.div
-                key="settings"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                className="min-h-screen"
-              >
-                <SettingsPage />
-              </motion.div>
-            }
-          />
-
-          <Route 
-            path="/activity" 
-            element={
-              <motion.div
-                key="activity"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                className="min-h-screen"
-              >
-                <RecentActivityPage />
-              </motion.div>
-            }
-          />
-
-          <Route 
-            path="/upload" 
-            element={
-              <motion.div
-                key="upload"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                className="min-h-screen"
-              >
-                <UploadDocumentPage />
-              </motion.div>
-            }
-          />
-
-          <Route 
-            path="/documents" 
-            element={
-              <motion.div
-                key="documents"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                className="min-h-screen"
-              >
-                <MyDocumentsPage />
-              </motion.div>
-            }
-          />
-
-          {/* 404 Fallback */}
-          <Route 
-            path="*" 
-            element={
-              <motion.div
-                key="not-found"
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                variants={pageVariants}
-                className="min-h-screen"
-              >
-                <NotFound />
-              </motion.div>
-            } 
-          />
-        </Routes>
-      </AnimatePresence>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner position="top-right" theme="light" />
+        <AnimatePresence mode="wait">
+          <Routes>
+            <Route 
+              path="/" 
+              element={
+                <motion.div
+                  key="home"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <Index />
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/auth/:mode?" 
+              element={
+                <motion.div
+                  key="auth"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <Auth />
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/dashboard" 
+              element={
+                <motion.div
+                  key="dashboard"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <Dashboard />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/settings" 
+              element={
+                <motion.div
+                  key="settings"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/activity" 
+              element={
+                <motion.div
+                  key="activity"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <RecentActivityPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/upload" 
+              element={
+                <motion.div
+                  key="upload"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <UploadDocumentPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/documents" 
+              element={
+                <motion.div
+                  key="documents"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <MyDocumentsPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="*" 
+              element={
+                <motion.div
+                  key="not-found"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <NotFound />
+                </motion.div>
+              } 
+            />
+          </Routes>
+        </AnimatePresence>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 
