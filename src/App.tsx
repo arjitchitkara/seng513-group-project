@@ -17,6 +17,8 @@ import RecentActivityPage from "./pages/RecentActivityPage";
 import UploadDocumentPage from "./pages/UploadDocumentPage";
 import MyDocumentsPage from "./pages/MyDocumentsPage";
 
+import Courses from "./pages/Courses";
+
 // Create a client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -170,6 +172,23 @@ const App = () => (
                 >
                   <ProtectedRoute>
                     <MyDocumentsPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/courses" 
+              element={
+                <motion.div
+                  key="courses"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <Courses />
                   </ProtectedRoute>
                 </motion.div>
               } 
