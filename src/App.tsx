@@ -101,9 +101,8 @@ const App = () => (
                   variants={pageVariants}
                   className="min-h-screen"
                 >
-                  <ProtectedRoute>
+                
                     <Dashboard />
-                  </ProtectedRoute>
                 </motion.div>
               } 
             />
@@ -169,9 +168,7 @@ const App = () => (
                   variants={pageVariants}
                   className="min-h-screen"
                 >
-                  <ProtectedRoute>
-                    <ProfilePage />
-                  </ProtectedRoute>
+                    <ProfilePage />                  
                 </motion.div>
               }
             />
