@@ -1,4 +1,3 @@
-
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
@@ -16,39 +15,26 @@ const HeroSection = () => {
     <section className="pt-32 pb-20 px-6 bg-gradient-to-b from-background to-secondary/20">
       <div className="max-w-7xl mx-auto">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <motion.div
-            initial="hidden"
-            animate="visible"
-            variants={fadeIn}
-            transition={{ duration: 0.5 }}
-          >
-            <motion.span
+          <div>
+            <span
               className="inline-block px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6"
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
             >
               Your academic success starts here
-            </motion.span>
-            <motion.h1
+            </span>
+            <h1
               className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-6"
-              variants={fadeIn}
             >
               Transform Your <br />
               <span className="text-gradient">Learning Experience</span>
-            </motion.h1>
-            <motion.p
+            </h1>
+            <p
               className="text-lg text-muted-foreground mb-8 max-w-lg"
-              variants={fadeIn}
-              transition={{ delay: 0.1 }}
             >
               Access and share academic resources with integrity. 
               Discover study materials, connect with peers, and excel in your courses.
-            </motion.p>
-            <motion.div
+            </p>
+            <div
               className="flex flex-wrap gap-4"
-              variants={fadeIn}
-              transition={{ delay: 0.2 }}
             >
               <Link to="/auth/register">
                 <AnimatedButton
@@ -70,11 +56,9 @@ const HeroSection = () => {
                   Explore Courses
                 </AnimatedButton>
               </Link>
-            </motion.div>
-            <motion.div
+            </div>
+            <div
               className="mt-12 flex items-center gap-4"
-              variants={fadeIn}
-              transition={{ delay: 0.3 }}
             >
               <div className="flex -space-x-2">
                 {[...Array(3)].map((_, i) => (
@@ -90,21 +74,18 @@ const HeroSection = () => {
                 <span className="text-primary font-medium">10,000+</span> students
                 already joined
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
 
-          <motion.div
+          <div
             className="relative"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
           >
             <GlassMorphism className="p-1 lg:p-2" intensity="light">
-              <img
-                src="https://images.unsplash.com/photo-1517842645767-c639042777db?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80"
-                alt="Students studying"
-                className="w-full h-auto rounded-lg shadow-lg"
-              />
+              <div
+                className="w-full h-[300px] rounded-lg bg-gradient-to-r from-primary/20 to-secondary/40 flex items-center justify-center"
+              >
+                <p className="text-xl font-medium text-foreground">Study Resources Preview</p>
+              </div>
             </GlassMorphism>
             <div className="absolute -bottom-5 -right-5 lg:-bottom-8 lg:-right-8 p-4 lg:p-6 rounded-lg shadow-lg bg-background">
               <div className="flex items-center gap-3">
@@ -117,7 +98,7 @@ const HeroSection = () => {
                 </div>
               </div>
             </div>
-          </motion.div>
+          </div>
         </div>
       </div>
     </section>
