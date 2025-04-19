@@ -25,7 +25,11 @@ export default defineConfig(({ mode }) => ({
     },
   },
   optimizeDeps: {
-    exclude: ['backend/r2/r2Client.ts', 'backend/r2/documentService.ts']
+    exclude: [
+      'backend/r2/r2Client.ts', 
+      'backend/r2/documentService.ts',
+      'pdfjs-dist'
+    ]
   },
   build: {
     outDir: 'dist',

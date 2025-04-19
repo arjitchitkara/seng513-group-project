@@ -1,5 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import DocViewer, { DocViewerRenderers } from 'react-doc-viewer';
+import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
 
@@ -22,108 +21,124 @@ export const DocumentPreview = ({
 }: DocumentPreviewProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [contentType, setContentType] = useState<string | null>(null);
+  const [textContent, setTextContent] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
-  const viewerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Add a timestamp to the URL to avoid browser cache issues
-  const getUrlWithTimestamp = useCallback(() => {
-    const timestamp = new Date().getTime();
+  // Generate URL with cache-busting
+  const getFetchUrl = () => {
+    const timestamp = Date.now();
     return `${url}${url.includes('?') ? '&' : '?'}t=${timestamp}&retry=${retryCount}`;
-  }, [url, retryCount]);
-
-  // Log document loading
-  useEffect(() => {
-    console.log(`[DocumentPreview] Attempting to load document: ${url}`);
-    return () => {
-      console.log(`[DocumentPreview] Cleaning up document load: ${url}`);
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-    };
-  }, [url]);
+  };
 
   useEffect(() => {
-    // Reset state when URL changes
+    console.log(`[CustomDocPreview] Loading document: ${url}, retry: ${retryCount}`);
     setLoading(true);
     setError(null);
+    setTextContent(null);
     
-    // Create a new abort controller for this request
+    // Cancel previous requests
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    
+    // Create new abort controller
     abortControllerRef.current = new AbortController();
+    const { signal } = abortControllerRef.current;
     
-    // Pre-fetch the document to check if it loads properly
-    console.log(`[DocumentPreview] Pre-fetching document to validate: ${url}`);
-    fetch(getUrlWithTimestamp(), { 
-      signal: abortControllerRef.current.signal,
-      cache: 'no-cache'
-    })
+    // Fetch the document to determine type and prepare rendering
+    fetch(getFetchUrl(), { signal, cache: 'no-store' })
       .then(response => {
         if (!response.ok) {
           throw new Error(`Server returned ${response.status}: ${response.statusText}`);
         }
         
-        // Check content type to ensure it's supported
-        const contentType = response.headers.get('content-type');
-        console.log(`[DocumentPreview] Document content type: ${contentType}`);
+        const type = response.headers.get('content-type');
+        setContentType(type);
+        console.log(`[CustomDocPreview] Document content type: ${type}`);
         
-        if (contentType && !contentType.includes('pdf') && 
-            !contentType.includes('docx') && 
-            !contentType.includes('pptx') && 
-            !contentType.includes('text/plain')) {
-          throw new Error(`Unsupported content type: ${contentType}`);
+        // For PDFs, we'll use iframe and don't need content
+        if (type?.includes('application/pdf')) {
+          setLoading(false);
+          return { type, data: null };
+        } else if (type?.includes('text/plain')) {
+          return response.text().then(text => ({ type, data: text }));
+        } else {
+          // For unsupported types, we'll just offer download option
+          console.log(`[CustomDocPreview] Unsupported content type: ${type}`);
+          setLoading(false);
+          return { type, data: null };
         }
-        
-        return response.blob();
       })
-      .then(blob => {
-        console.log(`[DocumentPreview] Document pre-fetch succeeded, content type: ${blob.type}, size: ${blob.size} bytes`);
-        // If the document loads successfully, we can set loading to false
-        setLoading(false);
+      .then(({ type, data }) => {
+        if (!data && !type?.includes('application/pdf')) return; // Skip processing for unsupported types
+        
+        if (type?.includes('text/plain')) {
+          // Display text content
+          setTextContent(data as string);
+          setLoading(false);
+        }
       })
       .catch(err => {
-        console.error(`[DocumentPreview] Document pre-fetch failed:`, err);
+        if (err.name === 'AbortError') {
+          console.log('[CustomDocPreview] Fetch aborted');
+          return;
+        }
+        
+        console.error(`[CustomDocPreview] Error loading document:`, err);
         setError(`Failed to load document: ${err.message}`);
         setLoading(false);
       });
-    
-    // Fallback timer in case fetch doesn't complete
-    const timer = setTimeout(() => {
-      console.log(`[DocumentPreview] Loading timeout reached for: ${url}`);
-      setLoading(false);
-    }, 8000); // Longer timeout to allow more time for document loading
+      
+    // Timeout safety net
+    const timeout = setTimeout(() => {
+      if (loading && abortControllerRef.current) {
+        console.log(`[CustomDocPreview] Loading timeout reached`);
+        setError('Loading timed out. Please try again.');
+        setLoading(false);
+        abortControllerRef.current.abort();
+      }
+    }, 15000);
     
     return () => {
-      clearTimeout(timer);
+      console.log(`[CustomDocPreview] Cleaning up effect`);
+      clearTimeout(timeout);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
     };
-  }, [url, retryCount, getUrlWithTimestamp]);
-
+  }, [url, retryCount]);
+  
   const handleDownload = () => {
-    console.log(`[DocumentPreview] Initiating download for: ${url}`);
+    console.log(`[CustomDocPreview] Initiating download for: ${fileName}`);
     const link = document.createElement('a');
-    link.href = getUrlWithTimestamp();
+    link.href = getFetchUrl();
     link.download = fileName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     toast.success('Download started');
   };
-
-  const handleDocumentError = (error: Error | unknown) => {
-    console.error(`[DocumentPreview] Error in DocViewer:`, error);
-    setError('Failed to load document preview');
-    setLoading(false);
-  };
-
+  
   const handleRetry = () => {
-    console.log(`[DocumentPreview] Retrying document load, retry count: ${retryCount + 1}`);
+    console.log(`[CustomDocPreview] Retrying document load, retry count: ${retryCount + 1}`);
     setRetryCount(prev => prev + 1);
   };
-
-  // DocumentURI with unique timestamp for each render to avoid caching issues
-  const documentUri = getUrlWithTimestamp();
-  console.log(`[DocumentPreview] Final document URI: ${documentUri}`);
-
+  
+  // Handle iframe load events
+  const handleIframeLoad = () => {
+    setLoading(false);
+  };
+  
+  const handleIframeError = () => {
+    setError('Failed to load PDF in iframe');
+    setLoading(false);
+  };
+  
   return (
     <div className="flex flex-col h-full w-full border rounded-lg overflow-hidden bg-card">
       <div className="flex justify-between items-center p-3 border-b bg-muted/50">
@@ -140,7 +155,7 @@ export const DocumentPreview = ({
         </Button>
       </div>
 
-      <div className="flex-1 min-h-[400px] relative">
+      <div className="flex-1 min-h-[400px] relative" ref={containerRef}>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
             <div className="animate-spin h-6 w-6 border-t-2 border-primary rounded-full" />
@@ -166,19 +181,41 @@ export const DocumentPreview = ({
             </div>
           </div>
         ) : (
-          <div className="h-full" ref={viewerRef}>
-            <DocViewer
-              documents={[{ uri: documentUri }]}
-              pluginRenderers={DocViewerRenderers}
-              config={{
-                header: {
-                  disableHeader: true,
-                  disableFileName: true,
-                },
-              }}
-              style={{ height: '100%' }}
-            />
-          </div>
+          <>
+            {/* PDF Viewer (using iframe) */}
+            {contentType?.includes('application/pdf') && (
+              <div className="h-full w-full overflow-hidden">
+                <iframe 
+                  ref={iframeRef}
+                  src={getFetchUrl()}
+                  className="w-full h-full border-none"
+                  onLoad={handleIframeLoad}
+                  onError={handleIframeError}
+                />
+              </div>
+            )}
+            
+            {/* Text Viewer */}
+            {contentType?.includes('text/plain') && textContent && (
+              <div className="h-full overflow-auto p-4">
+                <pre className="whitespace-pre-wrap font-mono text-sm bg-muted/30 p-4 rounded-md">
+                  {textContent}
+                </pre>
+              </div>
+            )}
+            
+            {/* Unsupported format */}
+            {contentType && !contentType.includes('application/pdf') && !contentType.includes('text/plain') && !loading && !error && (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-center p-4">
+                  <p className="mb-4">This document format ({contentType}) cannot be previewed directly.</p>
+                  <Button onClick={handleDownload}>
+                    Download to View
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
         )}
       </div>
 
