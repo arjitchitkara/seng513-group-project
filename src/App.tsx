@@ -10,6 +10,7 @@ import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import ProfilePage from "./pages/Profile/ProfilePage";
 
 // New Pages
 import SettingsPage from "./pages/SettingsPage";
@@ -156,6 +157,23 @@ const App = () => (
                   </ProtectedRoute>
                 </motion.div>
               } 
+            />
+            <Route
+              path="/profile/:userId"
+              element={
+                <motion.div
+                  key="profile"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                </motion.div>
+              }
             />
             <Route 
               path="/documents" 
