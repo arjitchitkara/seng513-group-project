@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "esModuleInterop": true,
+    "outDir": "../../dist",
+    "rootDir": "../..",
+    "baseUrl": "../..",
+    "paths": {
+      "@/*": ["./src/*"]
+    },
+    "jsx": "react-jsx",
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["../../src/**/*.ts", "../../src/**/*.tsx", "../../backend/**/*.ts"]
+} 

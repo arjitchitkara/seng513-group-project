@@ -177,7 +177,7 @@ const App = () => (
               } 
             />
             <Route 
-              path="/upload" 
+              path="/upload-document" 
               element={
                 <motion.div
                   key="upload"
@@ -194,7 +194,7 @@ const App = () => (
               } 
             />
             <Route 
-              path="/documents" 
+              path="/my-documents" 
               element={
                 <motion.div
                   key="documents"

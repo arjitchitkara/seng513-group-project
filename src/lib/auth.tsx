@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Session, User, AuthError } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { supabase } from './supabase-client';
 import { useToast } from '@/hooks/use-toast';
 
 type AuthContextType = {
@@ -94,10 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       navigate('/auth/login');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error creating account',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -158,10 +158,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       
       navigate('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error signing out',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -179,10 +179,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Password reset email sent',
         description: 'Check your email for a password reset link.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error resetting password',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -225,10 +225,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Profile updated',
         description: 'Your profile has been updated successfully.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error updating profile',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
