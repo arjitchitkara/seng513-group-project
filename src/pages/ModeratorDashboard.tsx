@@ -8,6 +8,18 @@ import { toast } from 'sonner';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import axios from 'axios';
+import { Input } from '@/components/ui/input';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { apiClient } from '@/lib/api-client';
 import {
   Bookmark,
   FileText,
@@ -191,8 +203,8 @@ const ModeratorDashboard = () => {
       setLoading(true);
       setSelectedDocument(null);
       
-      // Fetch document metadata from database (not actual files from R2)
-      const { data } = await axios.get<Document[]>('/api/documents', {
+      // Fetch document metadata from database using our apiClient with auth token
+      const { data } = await apiClient.get('/documents', {
         params: { status }
       });
       
@@ -213,7 +225,7 @@ const ModeratorDashboard = () => {
     }
   };
 
-  // Update handleApprove to use database transaction approach
+  // Update handleApprove to use database transaction approach with apiClient
   const handleApprove = async (documentId: string): Promise<void> => {
     try {
       // Get the document from local state for UI updates
@@ -224,7 +236,7 @@ const ModeratorDashboard = () => {
       }
 
       // Update document status in the database (server handles the transaction)
-      await axios.patch(`/api/documents/${documentId}`, {
+      await apiClient.patch(`/documents/${documentId}`, {
         status: ApprovalStatus.APPROVED
       });
       
@@ -244,7 +256,7 @@ const ModeratorDashboard = () => {
     }
   };
 
-  // Update handleReject to use the same database transaction approach
+  // Update handleReject to use the same database transaction approach with apiClient
   const handleReject = async (documentId: string): Promise<void> => {
     try {
       // Get the document from local state for UI updates
@@ -255,7 +267,7 @@ const ModeratorDashboard = () => {
       }
 
       // Update document status in the database (server handles the transaction)
-      await axios.patch(`/api/documents/${documentId}`, {
+      await apiClient.patch(`/documents/${documentId}`, {
         status: ApprovalStatus.REJECTED
       });
       

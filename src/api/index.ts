@@ -1,3 +1,14 @@
+import path from 'path';
+import { config } from 'dotenv';
+import { fileURLToPath } from 'url';
+
+// Get the current file path and directory for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env from project root
+config({ path: path.resolve(__dirname, '../../.env') });
+
 import express from 'express';
 import cors from 'cors';
 import multer from 'multer';

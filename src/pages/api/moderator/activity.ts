@@ -1,26 +1,39 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { PrismaClient, ActivityType } from '@prisma/client';
-import { getSession } from 'next-auth/react';
+import { createClient } from '@supabase/supabase-js';
 
 const prisma = new PrismaClient();
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
-  // Get the authenticated user using your auth system
-  const session = await getSession({ req });
+  // Create a Supabase client
+  const supabase = createClient(supabaseUrl, supabaseKey);
   
-  // Check if user is authenticated and is a moderator
-  if (!session || !session.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  // Get the authenticated user from the request cookie
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized - No valid auth token' });
   }
   
-  const userEmail = session.user.email;
+  const token = authHeader.split(' ')[1];
+  
+  // Verify the token
+  const { data: { user }, error } = await supabase.auth.getUser(token);
+  
+  if (error || !user) {
+    return res.status(401).json({ error: 'Unauthorized - Invalid token' });
+  }
+  
+  const userEmail = user.email;
   
   // Fetch the user from database with role
-  const user = await prisma.user.findUnique({
+  const dbUser = await prisma.user.findUnique({
     where: { email: userEmail || '' },
   });
   
-  if (!user || (user.role !== 'MODERATOR' && user.role !== 'ADMIN')) {
+  if (!dbUser || (dbUser.role !== 'MODERATOR' && dbUser.role !== 'ADMIN')) {
     return res.status(403).json({ error: 'Forbidden: Requires moderator privileges' });
   }
 
@@ -30,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       // Fetch the latest moderator activities
       const activities = await prisma.moderatorActivity.findMany({
         where: {
-          moderatorId: user.id,
+          moderatorId: dbUser.id,
         },
         orderBy: {
           timestamp: 'desc',
@@ -77,7 +90,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
             connect: { id: documentId }
           } : undefined,
           moderator: {
-            connect: { id: user.id }
+            connect: { id: dbUser.id }
           },
           timestamp: new Date(),
         },
