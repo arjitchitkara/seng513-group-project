@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
+import { Download, Presentation } from 'lucide-react';
 
 interface DocumentPreviewProps {
   url: string;
@@ -34,20 +35,14 @@ export const DocumentPreview = ({
     return `${url}${url.includes('?') ? '&' : '?'}t=${timestamp}&retry=${retryCount}`;
   };
 
-  // Get Office Web Viewer URL
-  const getOfficeWebViewerUrl = () => {
-    const encodedUrl = encodeURIComponent(getFetchUrl());
-    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
-  };
-
-  // Check if file is an Office document
-  const isOfficeDocument = (type: string | null) => {
+  // Check if the file is a PowerPoint file based on content type or filename
+  const isPowerPointFile = (type: string | null, name: string): boolean => {
     if (!type) return false;
     return (
-      type.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') || // docx
-      type.includes('application/vnd.openxmlformats-officedocument.presentationml.presentation') || // pptx
-      type.includes('application/msword') || // doc
-      type.includes('application/vnd.ms-powerpoint') // ppt
+      type.includes('application/vnd.openxmlformats-officedocument.presentationml.presentation') ||
+      type.includes('application/vnd.ms-powerpoint') ||
+      name.toLowerCase().endsWith('.pptx') ||
+      name.toLowerCase().endsWith('.ppt')
     );
   };
 
@@ -67,6 +62,7 @@ export const DocumentPreview = ({
     const { signal } = abortControllerRef.current;
     
     // Fetch the document to determine type and prepare rendering
+    console.log(`[CustomDocPreview] Fetching document from: ${getFetchUrl()}`);
     fetch(getFetchUrl(), { signal, cache: 'no-store' })
       .then(response => {
         if (!response.ok) {
@@ -75,30 +71,31 @@ export const DocumentPreview = ({
         
         const type = response.headers.get('content-type');
         setContentType(type);
-        console.log(`[CustomDocPreview] Document content type: ${type}`);
+        console.log(`[CustomDocPreview] Document content type detected: ${type}`);
         
-        // For PDFs, we'll use iframe and don't need content
+        // For PDFs, we'll use iframe 
         if (type?.includes('application/pdf')) {
+          console.log(`[CustomDocPreview] Detected PDF, will use iframe viewer`);
           setLoading(false);
           return { type, data: null };
         } else if (type?.includes('text/plain')) {
+          console.log(`[CustomDocPreview] Detected text file, will load content`);
           return response.text().then(text => ({ type, data: text }));
-        } else if (isOfficeDocument(type)) {
-          // For Office documents, we'll use Office Web Viewer
+        } else if (isPowerPointFile(type, fileName)) {
+          console.log(`[CustomDocPreview] Detected PowerPoint file, using download-only mode`);
           setLoading(false);
           return { type, data: null };
         } else {
           // For unsupported types, we'll just offer download option
-          console.log(`[CustomDocPreview] Unsupported content type: ${type}`);
+          console.log(`[CustomDocPreview] Unsupported content type: ${type}, offering download option`);
           setLoading(false);
           return { type, data: null };
         }
       })
       .then(({ type, data }) => {
-        if (!data && !type?.includes('application/pdf') && !isOfficeDocument(type)) return; // Skip processing for unsupported types
-        
         if (type?.includes('text/plain')) {
           // Display text content
+          console.log(`[CustomDocPreview] Loaded text content, length: ${(data as string)?.length || 0} chars`);
           setTextContent(data as string);
           setLoading(false);
         }
@@ -132,7 +129,7 @@ export const DocumentPreview = ({
         abortControllerRef.current = null;
       }
     };
-  }, [url, retryCount]);
+  }, [url, retryCount, fileName]);
   
   const handleDownload = () => {
     console.log(`[CustomDocPreview] Initiating download for: ${fileName}`);
@@ -156,6 +153,7 @@ export const DocumentPreview = ({
   };
   
   const handleIframeError = () => {
+    console.log('[CustomDocPreview] Iframe error detected');
     setError('Failed to load document in iframe');
     setLoading(false);
   };
@@ -216,19 +214,6 @@ export const DocumentPreview = ({
               </div>
             )}
             
-            {/* Office Document Viewer (using Office Web Viewer) */}
-            {contentType && isOfficeDocument(contentType) && (
-              <div className="h-full w-full overflow-hidden">
-                <iframe 
-                  ref={iframeRef}
-                  src={getOfficeWebViewerUrl()}
-                  className="w-full h-full border-none"
-                  onLoad={handleIframeLoad}
-                  onError={handleIframeError}
-                />
-              </div>
-            )}
-            
             {/* Text Viewer */}
             {contentType?.includes('text/plain') && textContent && (
               <div className="h-full overflow-auto p-4">
@@ -238,17 +223,45 @@ export const DocumentPreview = ({
               </div>
             )}
             
-            {/* Unsupported format */}
+            {/* PowerPoint Viewer - Styled Download Button */}
+            {contentType && isPowerPointFile(contentType, fileName) && !loading && !error && (
+              <div className="h-full flex items-center justify-center p-6">
+                <div className="text-center max-w-md p-6 rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 shadow-sm border">
+                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center text-white">
+                    <Presentation size={40} />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-800 mb-2">PowerPoint Presentation</h3>
+                  <p className="mb-6 text-gray-600">
+                    This is a PowerPoint presentation that needs to be downloaded to view all slides and content properly.
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button 
+                      variant="default" 
+                      onClick={handleDownload}
+                      className="gap-2"
+                    >
+                      <Download size={16} />
+                      Download Presentation
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* For other unsupported types */}
             {contentType && 
               !contentType.includes('application/pdf') && 
               !contentType.includes('text/plain') && 
-              !isOfficeDocument(contentType) &&
+              !isPowerPointFile(contentType, fileName) &&
               !loading && 
               !error && (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center p-4">
                   <p className="mb-4">This document format ({contentType}) cannot be previewed directly.</p>
-                  <Button onClick={handleDownload}>
+                  <Button 
+                    variant="default" 
+                    onClick={handleDownload}
+                  >
                     Download to View
                   </Button>
                 </div>
@@ -259,11 +272,19 @@ export const DocumentPreview = ({
       </div>
 
       {isModeratorView && (
-        <div className="p-3 border-t bg-muted/30 flex justify-between">
-          <Button variant="destructive" onClick={onReject}>
+        <div className="p-3 border-t flex justify-end gap-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={onReject}
+          >
             Reject
           </Button>
-          <Button variant="default" onClick={onApprove}>
+          <Button 
+            variant="default" 
+            size="sm" 
+            onClick={onApprove}
+          >
             Approve
           </Button>
         </div>

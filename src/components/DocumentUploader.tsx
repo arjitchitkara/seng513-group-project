@@ -67,7 +67,7 @@ export const DocumentUploader = ({ courseId, onUploadComplete }: DocumentUploade
     try {
       setUploading(true);
       
-      // Upload to server (which handles R2)
+      // Upload to server (which handles conversion to PDF and R2 storage)
       const filePath = await uploadDocumentToServer(file, user.id);
       
       // Create document record in database via API

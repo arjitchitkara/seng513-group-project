@@ -1,6 +1,6 @@
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { r2Client, BUCKET_NAME } from './r2Client';
+import { getR2Client, getBucketName } from './r2Client';
 import zlib from 'zlib';
 import { promisify } from 'util';
 
@@ -44,7 +44,7 @@ export const uploadDocument = async (file: FileInput, userId: string): Promise<s
     // Generate a unique key for the file
     const timestamp = Date.now();
     const fileName = isBrowserFile(file) ? file.name : file.name;
-    const key = `documents/${userId}/${timestamp}-${fileName}.gz`;
+    const key = `documents/${userId}/${timestamp}-${fileName}`;
     
     // Get the buffer and content type
     let buffer: Buffer;
@@ -60,27 +60,18 @@ export const uploadDocument = async (file: FileInput, userId: string): Promise<s
       contentType = file.type;
     }
     
-    // Compress the buffer using gzip
-    const compressedBuffer = await gzipAsync(buffer);
+    // Get R2 client and bucket name
+    const r2Client = getR2Client();
+    const bucketName = getBucketName();
     
-    // Calculate and log compression stats
-    const originalSize = buffer.length;
-    const compressedSize = compressedBuffer.length;
-    const savingsPercent = ((originalSize - compressedSize) / originalSize * 100).toFixed(2);
-    console.log(`Compression stats for ${fileName}:`);
-    console.log(`Original size: ${(originalSize / 1024).toFixed(2)} KB`);
-    console.log(`Compressed size: ${(compressedSize / 1024).toFixed(2)} KB`);
-    console.log(`Space savings: ${savingsPercent}%`);
+    console.log(`[R2-SERVICE] Uploading to bucket: ${bucketName}`);
     
     // Upload to R2
     const command = new PutObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: bucketName,
       Key: key,
-      Body: compressedBuffer,
-      ContentType: contentType,
-      Metadata: {
-        compressed: 'true'
-      }
+      Body: buffer,
+      ContentType: contentType
     });
     
     await r2Client.send(command);
@@ -94,14 +85,35 @@ export const uploadDocument = async (file: FileInput, userId: string): Promise<s
 // Generate a signed URL for downloading a document
 export const getDocumentUrl = async (key: string, expirationSeconds = 3600): Promise<string> => {
   try {
+    // Validate input parameters
+    if (!key) {
+      throw new Error('Missing required parameter: key');
+    }
+    
+    // Get R2 client and bucket name
+    const r2Client = getR2Client();
+    const bucketName = getBucketName();
+    
+    // Validate R2 configuration
+    if (!bucketName) {
+      throw new Error('R2_BUCKET_NAME environment variable is not configured');
+    }
+    
+    // Log request details
+    console.log(`[R2-SERVICE] Generating signed URL for key: ${key}`);
+    console.log(`[R2-SERVICE] Using bucket: ${bucketName}`);
+    
     const command = new GetObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: bucketName,
       Key: key,
     });
     
-    return await getSignedUrl(r2Client, command, { expiresIn: expirationSeconds });
+    const url = await getSignedUrl(r2Client, command, { expiresIn: expirationSeconds });
+    console.log(`[R2-SERVICE] Successfully generated signed URL for ${key}`);
+    return url;
   } catch (error) {
-    console.error('Error generating signed URL:', error);
+    console.error('[R2-SERVICE] Error generating signed URL:', error);
+    console.error(`[R2-SERVICE] Error details - Key: ${key}, Bucket: ${getBucketName()}`);
     throw error;
   }
 };
@@ -109,8 +121,12 @@ export const getDocumentUrl = async (key: string, expirationSeconds = 3600): Pro
 // Delete a document from R2
 export const deleteDocument = async (key: string): Promise<void> => {
   try {
+    // Get R2 client and bucket name
+    const r2Client = getR2Client();
+    const bucketName = getBucketName();
+    
     const command = new DeleteObjectCommand({
-      Bucket: BUCKET_NAME,
+      Bucket: bucketName,
       Key: key,
     });
     
