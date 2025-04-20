@@ -7,11 +7,12 @@ export type Tables = Database['public']['Tables'];
 // Profile helpers
 export async function getProfile(userId: string) {
   const { data, error } = await supabase
-    .from('profiles')
+    .from('User')
     .select('*')
-    .eq('user_id', userId)
+    .eq('id', userId)
     .single();
-  
+  console.log('Profile data:', data);
+  console.log('Profile error:', error);
   if (error) throw error;
   return data;
 }

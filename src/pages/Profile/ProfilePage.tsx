@@ -29,34 +29,14 @@ import NotFound from '../NotFound';
 
 const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
-  // const { user: authUser } = useAuth();
-  // const authName = authUser?.user_metadata.full_name || 'User';
-  // const [searchQuery, setSearchQuery] = useState('');
-  // const [tab, setTab] = useState<'documents' | 'bookmarks' | 'courses'>('documents');
 
-  // const user = USERS.find((u) => u.id === userId);
-  // if (!user) return <NotFound/>;
-
-  // const profile = PROFILES.find((p) => p.userId === user.id);
-  // const joinedDate = new Date(user.createdAt).toLocaleDateString('default', { month: 'long', year: 'numeric' });
-
-  // const docs = DOCUMENTS.filter((d) => d.userId === user.id);
-  // const bookmarks = BOOKMARKS.filter((b) => b.userId === user.id).map((b) => DOCUMENTS.find((d) => d.id === b.documentId));
-  // const courses = ENROLLMENTS.filter((e) => e.userId === user.id).map((e) => COURSES.find((c) => c.id === e.courseId));
-
-
-
-
-  // — 1) Grab the logged‐in user from context
   const [searchQuery, setSearchQuery] = useState('');
   const { user: user } = useAuth();
 
   const authName = user.user_metadata.full_name || 'User';
 
-  // — 2) Set up your tabs and search state
   const [tab, setTab] = useState<'documents' | 'bookmarks' | 'courses'>('documents');
 
-  // — 3) Fire off your queries
   const { data: profile, isLoading: loadingProfile } = useQuery({
     queryKey: ['profile', userId],
     queryFn: () => getProfile(userId),
@@ -77,7 +57,6 @@ const ProfilePage: React.FC = () => {
     queryFn: () => getEnrollments(userId),
   });
 
-  // — 4) Loading / error guard
   if (loadingProfile || loadingDocs || loadingBms || loadingEnrs) {
     return <p className="text-center mt-10">Loading…</p>;
   }
@@ -85,12 +64,10 @@ const ProfilePage: React.FC = () => {
     return <NotFound />;
   }
 
-  // — 5) Pull out the nested data
   const bookmarks = bms.map((row) => row.document);
   const courses   = enrolls.map((row) => row.course);
 
-  // — 6) Compute display values
-  const joinedDate = new Date(user.user_metadata.created_at || '').toLocaleDateString(
+  const joinedDate = new Date(profile.createdAt || '').toLocaleDateString(
     'default',
     { month: 'long', year: 'numeric' }
   );
@@ -138,12 +115,12 @@ const ProfilePage: React.FC = () => {
               )}
             </Avatar>
             <h1 className="text-3xl font-bold text-foreground">{profile.fullName}</h1>
-            <p className="text-xs text-muted-foreground capitalize">{user.role.toLowerCase()}</p>
+            <p className="text-xs text-muted-foreground capitalize">{profile.role.toLowerCase()}</p>
             <div className="flex items-center space-x-3 text-muted-foreground">
               <Calendar className="w-4 h-4" />
               <span>Joined {joinedDate}</span>
             </div>
-            {profile?.bio && <p className="text-foreground/80 max-w-xl">{profile.bio}</p>}
+            {profile?.bio && <p className="text-foreground/80 max-w-xl">{profile.profile.bio}</p>}
             
             <div className="flex gap-4 mt-4">
               <EditProfileModal />
