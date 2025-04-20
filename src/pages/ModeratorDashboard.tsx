@@ -5,7 +5,33 @@ import { useEffect, useState } from 'react';
 import { ApprovalStatus } from '@prisma/client';
 import { DocumentPreview } from '@/components/DocumentPreview';
 import { toast } from 'sonner';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import axios from 'axios';
+import {
+  Bookmark,
+  FileText,
+  Home,
+  LogOut,
+  Menu,
+  Search,
+  Settings,
+  User,
+  X,
+  Bell,
+  CheckCircle,
+  BookOpen,
+  BarChart,
+  MessageSquare,
+  Users,
+  Lightbulb,
+  ClipboardList,
+  Shield,
+  AlertTriangle,
+  Clock,
+  CheckSquare,
+  ArrowLeft,
+} from 'lucide-react';
 
 interface Document {
   id: string;
@@ -19,56 +45,128 @@ interface Document {
   };
 }
 
+// Stats data for dashboard
+const moderatorStats = [
+  {
+    title: 'Pending',
+    value: 0, // Will be updated dynamically
+    icon: Clock,
+    color: 'bg-amber-50 text-amber-500',
+  },
+  {
+    title: 'Approved',
+    value: 248,
+    icon: CheckSquare,
+    color: 'bg-green-50 text-green-500',
+  },
+  {
+    title: 'Rejected',
+    value: 32,
+    icon: AlertTriangle,
+    color: 'bg-red-50 text-red-500',
+  },
+  {
+    title: 'Total',
+    value: 280,
+    icon: FileText,
+    color: 'bg-blue-50 text-blue-500',
+  },
+];
+
 const ModeratorDashboard = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const userName = user?.user_metadata?.full_name || 'Moderator';
   const [pendingDocuments, setPendingDocuments] = useState<Document[]>([]);
+  const [approvedDocuments, setApprovedDocuments] = useState<Document[]>([]);
+  const [rejectedDocuments, setRejectedDocuments] = useState<Document[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [stats, setStats] = useState(moderatorStats);
+  const [activeView, setActiveView] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  
+  const location = useLocation();
+  const navigate = useNavigate();
 
-  const fetchPendingDocuments = async () => {
+  const toggleSidebar = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    // Implement search functionality
+    console.log('Searching for:', searchQuery);
+  };
+
+  // Determine which documents to fetch based on the path
+  useEffect(() => {
+    const path = location.pathname;
+    if (path.includes('/approved')) {
+      setActiveView('approved');
+      fetchDocuments(ApprovalStatus.APPROVED);
+    } else if (path.includes('/rejected')) {
+      setActiveView('rejected');
+      fetchDocuments(ApprovalStatus.REJECTED);
+    } else {
+      setActiveView('pending');
+      fetchDocuments(ApprovalStatus.PENDING);
+    }
+  }, [location.pathname]);
+
+  const fetchDocuments = async (status: ApprovalStatus) => {
     try {
       setLoading(true);
-      const response = await fetch(`/api/documents?status=${ApprovalStatus.PENDING}`);
+      setSelectedDocument(null);
       
-      if (!response.ok) {
-        throw new Error('Failed to fetch pending documents');
+      const { data } = await axios.get(`/api/documents`, {
+        params: { status }
+      });
+      
+      if (status === ApprovalStatus.PENDING) {
+        setPendingDocuments(data);
+        // Update stats with actual count
+        setStats(prevStats => 
+          prevStats.map(stat => 
+            stat.title === 'Pending' 
+              ? {...stat, value: data.length} 
+              : stat
+          )
+        );
+      } else if (status === ApprovalStatus.APPROVED) {
+        setApprovedDocuments(data);
+      } else if (status === ApprovalStatus.REJECTED) {
+        setRejectedDocuments(data);
       }
       
-      const data = await response.json();
-      setPendingDocuments(data);
     } catch (error) {
-      console.error('Error fetching pending documents:', error);
-      setError('Failed to load pending documents');
+      console.error(`Error fetching ${status.toLowerCase()} documents:`, error);
+      setError(`Failed to load ${status.toLowerCase()} documents`);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchPendingDocuments();
-  }, []);
-
   const handleApprove = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: ApprovalStatus.APPROVED,
-        }),
+      await axios.patch(`/api/documents/${documentId}`, {
+        status: ApprovalStatus.APPROVED
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to approve document');
-      }
       
       // Update local state
       setPendingDocuments(pendingDocuments.filter(doc => doc.id !== documentId));
       setSelectedDocument(null);
+      
+      // Update stats
+      setStats(prevStats => 
+        prevStats.map(stat => {
+          if (stat.title === 'Pending') return {...stat, value: stat.value - 1};
+          if (stat.title === 'Approved') return {...stat, value: stat.value + 1};
+          return stat;
+        })
+      );
+      
       toast.success('Document approved successfully');
     } catch (error) {
       console.error('Error approving document:', error);
@@ -78,23 +176,23 @@ const ModeratorDashboard = () => {
 
   const handleReject = async (documentId: string) => {
     try {
-      const response = await fetch(`/api/documents/${documentId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          status: ApprovalStatus.REJECTED,
-        }),
+      await axios.patch(`/api/documents/${documentId}`, {
+        status: ApprovalStatus.REJECTED
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to reject document');
-      }
       
       // Update local state
       setPendingDocuments(pendingDocuments.filter(doc => doc.id !== documentId));
       setSelectedDocument(null);
+      
+      // Update stats
+      setStats(prevStats => 
+        prevStats.map(stat => {
+          if (stat.title === 'Pending') return {...stat, value: stat.value - 1};
+          if (stat.title === 'Rejected') return {...stat, value: stat.value + 1};
+          return stat;
+        })
+      );
+      
       toast.success('Document rejected');
     } catch (error) {
       console.error('Error rejecting document:', error);
@@ -102,76 +200,202 @@ const ModeratorDashboard = () => {
     }
   };
 
+  // Get the current documents based on active view
+  const getCurrentDocuments = () => {
+    switch (activeView) {
+      case 'approved':
+        return approvedDocuments;
+      case 'rejected':
+        return rejectedDocuments;
+      case 'pending':
+      default:
+        return pendingDocuments;
+    }
+  };
+
+  // Get the title for the current view
+  const getViewTitle = () => {
+    switch (activeView) {
+      case 'approved':
+        return 'Approved Documents';
+      case 'rejected':
+        return 'Rejected Documents';
+      case 'pending':
+      default:
+        return 'Pending Documents';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-secondary/30 p-4 sm:p-6">
-      <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <GlassMorphism className="p-8" intensity="medium">
-            <h1 className="text-3xl font-bold mb-4">Moderator Dashboard</h1>
-            <p className="text-xl">Hello, {userName}!</p>
-            <p className="mt-4 text-muted-foreground">
-              Review and moderate document submissions below.
-            </p>
-          </GlassMorphism>
-          
-          <div className="mt-8">
-            <Tabs defaultValue="pending">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="pending">
-                  Pending Documents ({pendingDocuments.length})
-                </TabsTrigger>
-                <TabsTrigger value="preview" disabled={!selectedDocument}>
-                  Document Preview
-                </TabsTrigger>
-              </TabsList>
-              
-              <TabsContent value="pending" className="mt-4">
-                <GlassMorphism className="p-6" intensity="light">
-                  {loading ? (
-                    <div className="flex justify-center py-8">
-                      <div className="animate-spin h-8 w-8 border-t-2 border-primary rounded-full" />
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
+      {/* Mobile Sidebar Toggle */}
+      <button
+        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-full bg-background/80 backdrop-blur-sm shadow-md"
+        onClick={toggleSidebar}
+      >
+        {isSidebarOpen ? (
+          <X className="h-6 w-6 text-foreground" />
+        ) : (
+          <Menu className="h-6 w-6 text-foreground" />
+        )}
+      </button>
+
+      {/* Sidebar */}
+      <aside
+        className={`fixed top-0 left-0 h-full w-64 bg-background shadow-xl z-40 transform transition-transform duration-300 ease-in-out ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div className="h-full flex flex-col">
+          <div className="p-6 border-b border-border/50">
+            <Link to="/" className="text-xl font-semibold text-gradient">
+              eduVAULT
+            </Link>
+          </div>
+
+          <div className="p-6">
+            {/* User Info */}
+            <div className="flex items-center space-x-3 mb-6">
+              <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <Shield className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-medium">{userName}</p>
+                <p className="text-xs text-muted-foreground">MODERATOR</p>
+              </div>
+            </div>
+
+            {/* Nav Links */}
+            <nav className="space-y-1">
+              <Link
+                to="/moderator"
+                className={`flex items-center space-x-3 p-3 rounded-md ${
+                  activeView === 'pending' ? 'bg-primary/10 text-primary' : 'hover:bg-muted transition-colors'
+                }`}
+              >
+                <Clock className="h-4 w-4" />
+                <span>Pending Documents</span>
+              </Link>
+              <Link
+                to="/moderator/approved"
+                className={`flex items-center space-x-3 p-3 rounded-md ${
+                  activeView === 'approved' ? 'bg-primary/10 text-primary' : 'hover:bg-muted transition-colors'
+                }`}
+              >
+                <CheckCircle className="h-4 w-4" />
+                <span>Approved Documents</span>
+              </Link>
+              <Link
+                to="/moderator/rejected"
+                className={`flex items-center space-x-3 p-3 rounded-md ${
+                  activeView === 'rejected' ? 'bg-primary/10 text-primary' : 'hover:bg-muted transition-colors'
+                }`}
+              >
+                <AlertTriangle className="h-4 w-4" />
+                <span>Rejected Documents</span>
+              </Link>
+              <Link
+                to="/moderator/settings"
+                className="flex items-center space-x-3 p-3 rounded-md hover:bg-muted transition-colors"
+              >
+                <Settings className="h-4 w-4" />
+                <span>Settings</span>
+              </Link>
+            </nav>
+
+            <div className="border-t border-border/50 mt-6 pt-6">
+              <button
+                onClick={() => signOut()}
+                className="flex w-full items-center space-x-3 p-3 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Logout</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <div className="md:ml-64 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            {/* Header Section */}
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+              <div>
+                <h1 className="text-3xl font-bold">Moderator Dashboard</h1>
+                <p className="text-muted-foreground mt-1">
+                  Review, approve, and moderate document submissions
+                </p>
+              </div>
+
+              <form onSubmit={handleSearch} className="flex w-full md:w-auto">
+                <div className="relative flex-1 md:w-64">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    placeholder="Search documents..."
+                    className="w-full pl-10 pr-4 py-2 rounded-l-md border border-r-0 border-border bg-background"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <Button type="submit" className="rounded-l-none">
+                  Search
+                </Button>
+              </form>
+            </div>
+
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              {stats.map((stat) => (
+                <GlassMorphism
+                  key={stat.title}
+                  className="p-4"
+                  intensity="light"
+                >
+                  <div className="flex items-center space-x-4">
+                    <div className={`p-3 rounded-full ${stat.color}`}>
+                      <stat.icon className="h-5 w-5" />
                     </div>
-                  ) : error ? (
-                    <div className="text-center py-8 text-destructive">
-                      <p>{error}</p>
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        {stat.title}
+                      </p>
+                      <p className="text-2xl font-bold">{stat.value}</p>
                     </div>
-                  ) : pendingDocuments.length === 0 ? (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <p>No pending documents to review.</p>
-                    </div>
-                  ) : (
-                    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                      {pendingDocuments.map((doc) => (
-                        <div 
-                          key={doc.id}
-                          className="border rounded-lg p-4 bg-card hover:bg-muted/50 cursor-pointer transition-colors"
-                          onClick={() => setSelectedDocument(doc)}
-                        >
-                          <h3 className="font-medium mb-1">{doc.title}</h3>
-                          <p className="text-sm text-muted-foreground mb-2">
-                            Course: {doc.course.title}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Uploaded: {new Date(doc.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  </div>
                 </GlassMorphism>
-              </TabsContent>
-              
-              <TabsContent value="preview" className="mt-4">
-                {selectedDocument && (
+              ))}
+            </div>
+
+            {/* Documents Section */}
+            <div className="mb-8">
+              {selectedDocument ? (
+                <div>
+                  <div className="mb-6 flex items-center">
+                    <Button 
+                      variant="ghost" 
+                      className="mr-2"
+                      onClick={() => setSelectedDocument(null)}
+                    >
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to {getViewTitle()}
+                    </Button>
+                  </div>
+                  
                   <GlassMorphism className="p-6" intensity="light">
                     <div className="mb-4">
                       <h2 className="text-xl font-semibold">{selectedDocument.title}</h2>
                       <p className="text-muted-foreground">
                         Course: {selectedDocument.course.title}
+                      </p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Uploaded: {new Date(selectedDocument.createdAt).toLocaleString()}
                       </p>
                     </div>
                     
@@ -180,16 +404,129 @@ const ModeratorDashboard = () => {
                         url={selectedDocument.url}
                         fileName={selectedDocument.title}
                         isModeratorView={true}
-                        onApprove={() => handleApprove(selectedDocument.id)}
-                        onReject={() => handleReject(selectedDocument.id)}
+                        onApprove={activeView === 'pending' ? () => handleApprove(selectedDocument.id) : undefined}
+                        onReject={activeView === 'pending' ? () => handleReject(selectedDocument.id) : undefined}
                       />
                     </div>
+                    
+                    {activeView === 'pending' && (
+                      <div className="mt-4 flex space-x-4">
+                        <Button
+                          onClick={() => handleApprove(selectedDocument.id)}
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve Document
+                        </Button>
+                        <Button
+                          onClick={() => handleReject(selectedDocument.id)}
+                          variant="destructive"
+                        >
+                          <AlertTriangle className="h-4 w-4 mr-2" />
+                          Reject Document
+                        </Button>
+                      </div>
+                    )}
                   </GlassMorphism>
-                )}
-              </TabsContent>
-            </Tabs>
-          </div>
-        </motion.div>
+                </div>
+              ) : (
+                <div>
+                  <div className="mb-4">
+                    <h2 className="text-xl font-semibold">{getViewTitle()}</h2>
+                  </div>
+                  
+                  <GlassMorphism className="p-6" intensity="light">
+                    {loading ? (
+                      <div className="flex justify-center py-8">
+                        <div className="animate-spin h-8 w-8 border-t-2 border-primary rounded-full" />
+                      </div>
+                    ) : error ? (
+                      <div className="text-center py-8 text-destructive">
+                        <p>{error}</p>
+                      </div>
+                    ) : getCurrentDocuments().length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>No {activeView} documents found.</p>
+                      </div>
+                    ) : (
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {getCurrentDocuments().map((doc) => (
+                          <motion.div 
+                            key={doc.id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            className="border rounded-lg p-4 bg-card hover:bg-muted/50 cursor-pointer transition-colors"
+                            onClick={() => setSelectedDocument(doc)}
+                          >
+                            <h3 className="font-medium mb-1">{doc.title}</h3>
+                            <p className="text-sm text-muted-foreground mb-2">
+                              Course: {doc.course.title}
+                            </p>
+                            <div className="flex justify-between items-center">
+                              <p className="text-xs text-muted-foreground">
+                                Uploaded: {new Date(doc.createdAt).toLocaleDateString()}
+                              </p>
+                              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                                doc.status === ApprovalStatus.PENDING 
+                                  ? 'bg-amber-100 text-amber-800' 
+                                  : doc.status === ApprovalStatus.APPROVED
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                              }`}>
+                                {doc.status.charAt(0) + doc.status.slice(1).toLowerCase()}
+                              </span>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </GlassMorphism>
+                </div>
+              )}
+            </div>
+
+            {/* Moderator Activity Section */}
+            <GlassMorphism className="p-6 mb-8" intensity="light">
+              <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
+              <div className="space-y-4">
+                <div className="flex items-start space-x-4 p-3 rounded-lg bg-background/50">
+                  <div className="p-2 rounded-full bg-green-50 text-green-500">
+                    <CheckCircle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Document Approved</p>
+                    <p className="text-sm text-muted-foreground">
+                      You approved "Chemistry 101: Molecular Structures" - 2 hours ago
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-4 p-3 rounded-lg bg-background/50">
+                  <div className="p-2 rounded-full bg-red-50 text-red-500">
+                    <AlertTriangle className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium">Document Rejected</p>
+                    <p className="text-sm text-muted-foreground">
+                      You rejected "Unauthorized Course Materials" - 5 hours ago
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start space-x-4 p-3 rounded-lg bg-background/50">
+                  <div className="p-2 rounded-full bg-blue-50 text-blue-500">
+                    <Bell className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="font-medium">New Documents Pending</p>
+                    <p className="text-sm text-muted-foreground">
+                      5 new documents were submitted for review - 1 day ago
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </GlassMorphism>
+          </motion.div>
+        </div>
       </div>
     </div>
   );
