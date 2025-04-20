@@ -48,14 +48,6 @@ interface Document {
   course: DocumentCourse;
 }
 
-interface ModeratorActivity {
-  id: string;
-  type: 'APPROVE' | 'REJECT' | 'NEW';
-  documentTitle: string;
-  documentId: string | null;
-  timestamp: Date;
-}
-
 interface StatCard {
     title: string;
   value: number;
@@ -115,7 +107,6 @@ const ModeratorDashboard = () => {
   const [statsError, setStatsError] = useState<string | null>(null);
   const [statRefreshCounter, setStatRefreshCounter] = useState<number>(0);
   const [activeView, setActiveView] = useState<'pending' | 'approved' | 'rejected'>('pending');
-  const [recentActivity, setRecentActivity] = useState<ModeratorActivity[]>([]);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -196,34 +187,6 @@ const ModeratorDashboard = () => {
     // No need to call fetchDocumentCounts() here as we've already updated stats
   }, [pendingDocuments.length, approvedDocuments.length, rejectedDocuments.length]);
 
-  // Use local mock data for recent activity
-  const fetchRecentActivity = (): void => {
-    // Create mock data for display
-    setRecentActivity([
-      {
-        id: '1',
-        type: 'APPROVE',
-        documentTitle: 'Chemistry 101: Molecular Structures',
-        documentId: 'doc-1',
-        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
-      },
-      {
-        id: '2',
-        type: 'REJECT',
-        documentTitle: 'Unauthorized Course Materials',
-        documentId: 'doc-2',
-        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000) // 5 hours ago
-      },
-      {
-        id: '3',
-        type: 'NEW',
-        documentTitle: 'New Documents Pending',
-        documentId: null,
-        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1 day ago
-      }
-    ]);
-  };
-
   // Determine which documents to fetch based on the path
   useEffect(() => {
     const path = location.pathname;
@@ -238,9 +201,8 @@ const ModeratorDashboard = () => {
       fetchDocuments(ApprovalStatus.PENDING);
     }
     
-    // Calculate stats and set up activity data
+    // Calculate stats
     fetchDocumentCounts();
-    fetchRecentActivity();
   }, [location.pathname]);
 
   const fetchDocuments = async (status: ApprovalStatus): Promise<void> => {
@@ -299,17 +261,6 @@ const ModeratorDashboard = () => {
         })
       );
       
-      // Add to recent activity
-      const newActivity: ModeratorActivity = {
-        id: Date.now().toString(),
-        type: 'APPROVE',
-        documentTitle: document.title,
-        documentId: documentId,
-        timestamp: new Date()
-      };
-      
-      setRecentActivity(prev => [newActivity, ...prev.slice(0, 9)]);
-      
       toast.success('Document approved successfully');
     } catch (error) {
       console.error('Error approving document:', error);
@@ -348,17 +299,6 @@ const ModeratorDashboard = () => {
         })
       );
       
-      // Add to recent activity
-      const newActivity: ModeratorActivity = {
-        id: Date.now().toString(),
-        type: 'REJECT',
-        documentTitle: document.title,
-        documentId: documentId,
-        timestamp: new Date()
-      };
-      
-      setRecentActivity(prev => [newActivity, ...prev.slice(0, 9)]);
-      
       toast.success('Document rejected');
     } catch (error) {
       console.error('Error rejecting document:', error);
@@ -392,19 +332,6 @@ const ModeratorDashboard = () => {
       default:
         return 'Pending Documents';
     }
-  };
-
-  // Format relative time for activities
-  const formatRelativeTime = (date: Date): string => {
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
-    
-    return date.toLocaleDateString();
   };
 
   return (
@@ -721,52 +648,6 @@ const ModeratorDashboard = () => {
                 </div>
               )}
             </div>
-
-            {/* Moderator Activity Section */}
-            <GlassMorphism className="p-6 mb-8" intensity="light">
-              <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
-              <div className="space-y-4">
-                {recentActivity.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-4">No recent activity found.</p>
-                ) : (
-                  recentActivity.map((activity) => (
-                    <div key={activity.id} className="flex items-start space-x-4 p-3 rounded-lg bg-background/50">
-                      <div className={`p-2 rounded-full ${
-                        activity.type === 'APPROVE' 
-                          ? 'bg-green-50 text-green-500'
-                          : activity.type === 'REJECT'
-                            ? 'bg-red-50 text-red-500'
-                            : 'bg-blue-50 text-blue-500'
-                      }`}>
-                        {activity.type === 'APPROVE' ? (
-                          <CheckCircle className="h-4 w-4" />
-                        ) : activity.type === 'REJECT' ? (
-                          <AlertTriangle className="h-4 w-4" />
-                        ) : (
-                          <Bell className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div>
-                        <p className="font-medium">
-                          {activity.type === 'APPROVE' 
-                            ? 'Document Approved' 
-                            : activity.type === 'REJECT'
-                              ? 'Document Rejected'
-                              : 'New Documents Pending'
-                          }
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {activity.type === 'NEW' 
-                            ? activity.documentTitle
-                            : `You ${activity.type === 'APPROVE' ? 'approved' : 'rejected'} "${activity.documentTitle}"`
-                          } - {formatRelativeTime(activity.timestamp)}
-                        </p>
-                      </div>
-                    </div>
-                  ))
-                )}
-          </div>
-            </GlassMorphism>
         </motion.div>
         </div>
       </div>
