@@ -126,6 +126,40 @@ const App = () => (
               } 
             />
             <Route 
+              path="/moderator-dashboard/approved" 
+              element={
+                <motion.div
+                  key="moderator-approved"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute requiredRole="MODERATOR">
+                    <ModeratorDashboard />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/moderator-dashboard/rejected" 
+              element={
+                <motion.div
+                  key="moderator-rejected"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute requiredRole="MODERATOR">
+                    <ModeratorDashboard />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
               path="/admin-dashboard" 
               element={
                 <motion.div

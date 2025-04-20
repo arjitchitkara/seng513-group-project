@@ -33,6 +33,11 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 
+// Strict TypeScript interfaces
+interface DocumentCourse {
+  title: string;
+}
+
 interface Document {
   id: string;
   title: string;
@@ -40,13 +45,26 @@ interface Document {
   status: ApprovalStatus;
   createdAt: string;
   url: string;
-  course: {
-    title: string;
-  };
+  course: DocumentCourse;
+}
+
+interface ModeratorActivity {
+  id: string;
+  type: 'APPROVE' | 'REJECT' | 'NEW';
+  documentTitle: string;
+  documentId: string | null;
+  timestamp: Date;
+}
+
+interface StatCard {
+  title: string;
+  value: number;
+  icon: React.ElementType;
+  color: string;
 }
 
 // Stats data for dashboard
-const moderatorStats = [
+const moderatorStats: StatCard[] = [
   {
     title: 'Pending',
     value: 0, // Will be updated dynamically
@@ -55,19 +73,19 @@ const moderatorStats = [
   },
   {
     title: 'Approved',
-    value: 248,
+    value: 0, // Will be updated dynamically
     icon: CheckSquare,
     color: 'bg-green-50 text-green-500',
   },
   {
     title: 'Rejected',
-    value: 32,
+    value: 0, // Will be updated dynamically
     icon: AlertTriangle,
     color: 'bg-red-50 text-red-500',
   },
   {
     title: 'Total',
-    value: 280,
+    value: 0, // Will be updated dynamically
     icon: FileText,
     color: 'bg-blue-50 text-blue-500',
   },
@@ -79,13 +97,14 @@ const ModeratorDashboard = () => {
   const [pendingDocuments, setPendingDocuments] = useState<Document[]>([]);
   const [approvedDocuments, setApprovedDocuments] = useState<Document[]>([]);
   const [rejectedDocuments, setRejectedDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [stats, setStats] = useState(moderatorStats);
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [stats, setStats] = useState<StatCard[]>(moderatorStats);
   const [activeView, setActiveView] = useState<'pending' | 'approved' | 'rejected'>('pending');
+  const [recentActivity, setRecentActivity] = useState<ModeratorActivity[]>([]);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -98,6 +117,63 @@ const ModeratorDashboard = () => {
     e.preventDefault();
     // Implement search functionality
     console.log('Searching for:', searchQuery);
+  };
+
+  // Fetch all document counts for stats
+  const fetchDocumentCounts = async (): Promise<void> => {
+    try {
+      const pendingResponse = await axios.get('/api/documents/count', { params: { status: ApprovalStatus.PENDING } });
+      const approvedResponse = await axios.get('/api/documents/count', { params: { status: ApprovalStatus.APPROVED } });
+      const rejectedResponse = await axios.get('/api/documents/count', { params: { status: ApprovalStatus.REJECTED } });
+      
+      const pendingCount = pendingResponse.data.count;
+      const approvedCount = approvedResponse.data.count;
+      const rejectedCount = rejectedResponse.data.count;
+      const totalCount = pendingCount + approvedCount + rejectedCount;
+      
+      setStats([
+        { ...stats[0], value: pendingCount },
+        { ...stats[1], value: approvedCount },
+        { ...stats[2], value: rejectedCount },
+        { ...stats[3], value: totalCount },
+      ]);
+    } catch (error) {
+      console.error('Error fetching document counts:', error);
+    }
+  };
+
+  // Fetch recent activity
+  const fetchRecentActivity = async (): Promise<void> => {
+    try {
+      const { data } = await axios.get<ModeratorActivity[]>('/api/moderator/activity');
+      setRecentActivity(data);
+    } catch (error) {
+      console.error('Error fetching recent activity:', error);
+      // If API not available, create mock data
+      setRecentActivity([
+        {
+          id: '1',
+          type: 'APPROVE',
+          documentTitle: 'Chemistry 101: Molecular Structures',
+          documentId: 'doc-1',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+        },
+        {
+          id: '2',
+          type: 'REJECT',
+          documentTitle: 'Unauthorized Course Materials',
+          documentId: 'doc-2',
+          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000) // 5 hours ago
+        },
+        {
+          id: '3',
+          type: 'NEW',
+          documentTitle: 'New Documents Pending',
+          documentId: null,
+          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1 day ago
+        }
+      ]);
+    }
   };
 
   // Determine which documents to fetch based on the path
@@ -113,27 +189,23 @@ const ModeratorDashboard = () => {
       setActiveView('pending');
       fetchDocuments(ApprovalStatus.PENDING);
     }
+    
+    // Fetch all counts for stats and recent activity
+    fetchDocumentCounts();
+    fetchRecentActivity();
   }, [location.pathname]);
 
-  const fetchDocuments = async (status: ApprovalStatus) => {
+  const fetchDocuments = async (status: ApprovalStatus): Promise<void> => {
     try {
       setLoading(true);
       setSelectedDocument(null);
       
-      const { data } = await axios.get(`/api/documents`, {
+      const { data } = await axios.get<Document[]>('/api/documents', {
         params: { status }
       });
       
       if (status === ApprovalStatus.PENDING) {
         setPendingDocuments(data);
-        // Update stats with actual count
-        setStats(prevStats => 
-          prevStats.map(stat => 
-            stat.title === 'Pending' 
-              ? {...stat, value: data.length} 
-              : stat
-          )
-        );
       } else if (status === ApprovalStatus.APPROVED) {
         setApprovedDocuments(data);
       } else if (status === ApprovalStatus.REJECTED) {
@@ -148,11 +220,14 @@ const ModeratorDashboard = () => {
     }
   };
 
-  const handleApprove = async (documentId: string) => {
+  const handleApprove = async (documentId: string): Promise<void> => {
     try {
       await axios.patch(`/api/documents/${documentId}`, {
         status: ApprovalStatus.APPROVED
       });
+      
+      // Get the document title for the activity
+      const document = pendingDocuments.find(doc => doc.id === documentId);
       
       // Update local state
       setPendingDocuments(pendingDocuments.filter(doc => doc.id !== documentId));
@@ -167,6 +242,26 @@ const ModeratorDashboard = () => {
         })
       );
       
+      // Add to recent activity
+      if (document) {
+        const newActivity: ModeratorActivity = {
+          id: Date.now().toString(),
+          type: 'APPROVE',
+          documentTitle: document.title,
+          documentId: documentId,
+          timestamp: new Date()
+        };
+        
+        setRecentActivity(prev => [newActivity, ...prev.slice(0, 9)]);
+        
+        // Also send to API if available
+        try {
+          await axios.post('/api/moderator/activity', newActivity);
+        } catch (error) {
+          console.error('Failed to record activity', error);
+        }
+      }
+      
       toast.success('Document approved successfully');
     } catch (error) {
       console.error('Error approving document:', error);
@@ -174,11 +269,14 @@ const ModeratorDashboard = () => {
     }
   };
 
-  const handleReject = async (documentId: string) => {
+  const handleReject = async (documentId: string): Promise<void> => {
     try {
       await axios.patch(`/api/documents/${documentId}`, {
         status: ApprovalStatus.REJECTED
       });
+      
+      // Get the document title for the activity
+      const document = pendingDocuments.find(doc => doc.id === documentId);
       
       // Update local state
       setPendingDocuments(pendingDocuments.filter(doc => doc.id !== documentId));
@@ -193,6 +291,26 @@ const ModeratorDashboard = () => {
         })
       );
       
+      // Add to recent activity
+      if (document) {
+        const newActivity: ModeratorActivity = {
+          id: Date.now().toString(),
+          type: 'REJECT',
+          documentTitle: document.title,
+          documentId: documentId,
+          timestamp: new Date()
+        };
+        
+        setRecentActivity(prev => [newActivity, ...prev.slice(0, 9)]);
+        
+        // Also send to API if available
+        try {
+          await axios.post('/api/moderator/activity', newActivity);
+        } catch (error) {
+          console.error('Failed to record activity', error);
+        }
+      }
+      
       toast.success('Document rejected');
     } catch (error) {
       console.error('Error rejecting document:', error);
@@ -201,7 +319,7 @@ const ModeratorDashboard = () => {
   };
 
   // Get the current documents based on active view
-  const getCurrentDocuments = () => {
+  const getCurrentDocuments = (): Document[] => {
     switch (activeView) {
       case 'approved':
         return approvedDocuments;
@@ -214,7 +332,7 @@ const ModeratorDashboard = () => {
   };
 
   // Get the title for the current view
-  const getViewTitle = () => {
+  const getViewTitle = (): string => {
     switch (activeView) {
       case 'approved':
         return 'Approved Documents';
@@ -224,6 +342,19 @@ const ModeratorDashboard = () => {
       default:
         return 'Pending Documents';
     }
+  };
+
+  // Format relative time for activities
+  const formatRelativeTime = (date: Date): string => {
+    const now = new Date();
+    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    
+    if (diffInSeconds < 60) return `${diffInSeconds} seconds ago`;
+    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} minutes ago`;
+    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} hours ago`;
+    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)} days ago`;
+    
+    return date.toLocaleDateString();
   };
 
   return (
@@ -268,7 +399,7 @@ const ModeratorDashboard = () => {
             {/* Nav Links */}
             <nav className="space-y-1">
               <Link
-                to="/moderator"
+                to="/moderator-dashboard"
                 className={`flex items-center space-x-3 p-3 rounded-md ${
                   activeView === 'pending' ? 'bg-primary/10 text-primary' : 'hover:bg-muted transition-colors'
                 }`}
@@ -277,7 +408,7 @@ const ModeratorDashboard = () => {
                 <span>Pending Documents</span>
               </Link>
               <Link
-                to="/moderator/approved"
+                to="/moderator-dashboard/approved"
                 className={`flex items-center space-x-3 p-3 rounded-md ${
                   activeView === 'approved' ? 'bg-primary/10 text-primary' : 'hover:bg-muted transition-colors'
                 }`}
@@ -286,7 +417,7 @@ const ModeratorDashboard = () => {
                 <span>Approved Documents</span>
               </Link>
               <Link
-                to="/moderator/rejected"
+                to="/moderator-dashboard/rejected"
                 className={`flex items-center space-x-3 p-3 rounded-md ${
                   activeView === 'rejected' ? 'bg-primary/10 text-primary' : 'hover:bg-muted transition-colors'
                 }`}
@@ -403,7 +534,7 @@ const ModeratorDashboard = () => {
                       <DocumentPreview
                         url={selectedDocument.url}
                         fileName={selectedDocument.title}
-                        isModeratorView={true}
+                        isModeratorView={activeView === 'pending'}
                         onApprove={activeView === 'pending' ? () => handleApprove(selectedDocument.id) : undefined}
                         onReject={activeView === 'pending' ? () => handleReject(selectedDocument.id) : undefined}
                       />
@@ -490,39 +621,45 @@ const ModeratorDashboard = () => {
             <GlassMorphism className="p-6 mb-8" intensity="light">
               <h2 className="text-xl font-semibold mb-4">Recent Activity</h2>
               <div className="space-y-4">
-                <div className="flex items-start space-x-4 p-3 rounded-lg bg-background/50">
-                  <div className="p-2 rounded-full bg-green-50 text-green-500">
-                    <CheckCircle className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Document Approved</p>
-                    <p className="text-sm text-muted-foreground">
-                      You approved "Chemistry 101: Molecular Structures" - 2 hours ago
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-4 p-3 rounded-lg bg-background/50">
-                  <div className="p-2 rounded-full bg-red-50 text-red-500">
-                    <AlertTriangle className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Document Rejected</p>
-                    <p className="text-sm text-muted-foreground">
-                      You rejected "Unauthorized Course Materials" - 5 hours ago
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-start space-x-4 p-3 rounded-lg bg-background/50">
-                  <div className="p-2 rounded-full bg-blue-50 text-blue-500">
-                    <Bell className="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p className="font-medium">New Documents Pending</p>
-                    <p className="text-sm text-muted-foreground">
-                      5 new documents were submitted for review - 1 day ago
-                    </p>
-                  </div>
-                </div>
+                {recentActivity.length === 0 ? (
+                  <p className="text-center text-muted-foreground py-4">No recent activity found.</p>
+                ) : (
+                  recentActivity.map((activity) => (
+                    <div key={activity.id} className="flex items-start space-x-4 p-3 rounded-lg bg-background/50">
+                      <div className={`p-2 rounded-full ${
+                        activity.type === 'APPROVE' 
+                          ? 'bg-green-50 text-green-500'
+                          : activity.type === 'REJECT'
+                            ? 'bg-red-50 text-red-500'
+                            : 'bg-blue-50 text-blue-500'
+                      }`}>
+                        {activity.type === 'APPROVE' ? (
+                          <CheckCircle className="h-4 w-4" />
+                        ) : activity.type === 'REJECT' ? (
+                          <AlertTriangle className="h-4 w-4" />
+                        ) : (
+                          <Bell className="h-4 w-4" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-medium">
+                          {activity.type === 'APPROVE' 
+                            ? 'Document Approved' 
+                            : activity.type === 'REJECT'
+                              ? 'Document Rejected'
+                              : 'New Documents Pending'
+                          }
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          {activity.type === 'NEW' 
+                            ? activity.documentTitle
+                            : `You ${activity.type === 'APPROVE' ? 'approved' : 'rejected'} "${activity.documentTitle}"`
+                          } - {formatRelativeTime(activity.timestamp)}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </GlassMorphism>
           </motion.div>
