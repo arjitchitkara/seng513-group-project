@@ -365,7 +365,7 @@ const Dashboard = () => {
           <div className="flex flex-wrap items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Recent Documents</h2>
             <Link
-              to="/upload"
+              to="/upload-document"
               className="inline-flex items-center space-x-2 p-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
             >
               <Plus className="h-4 w-4" />

@@ -18,6 +18,8 @@ import SettingsPage from "./pages/SettingsPage";
 import RecentActivityPage from "./pages/RecentActivityPage";
 import UploadDocumentPage from "./pages/UploadDocumentPage";
 import MyDocumentsPage from "./pages/MyDocumentsPage";
+import ModeratorDashboard from '@/pages/ModeratorDashboard';
+import AdminDashboard from '@/pages/AdminDashboard';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -109,6 +111,74 @@ const App = () => (
               } 
             />
             <Route 
+              path="/moderator-dashboard" 
+              element={
+                <motion.div
+                  key="moderator-dashboard"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute requiredRole="MODERATOR">
+                    <ModeratorDashboard />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/moderator-dashboard/approved" 
+              element={
+                <motion.div
+                  key="moderator-approved"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute requiredRole="MODERATOR">
+                    <ModeratorDashboard />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/moderator-dashboard/rejected" 
+              element={
+                <motion.div
+                  key="moderator-rejected"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute requiredRole="MODERATOR">
+                    <ModeratorDashboard />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/admin-dashboard" 
+              element={
+                <motion.div
+                  key="admin-dashboard"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute requiredRole="ADMIN">
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
               path="/settings" 
               element={
                 <motion.div
@@ -160,7 +230,7 @@ const App = () => (
               } 
             />
             <Route 
-              path="/upload" 
+              path="/upload-document" 
               element={
                 <motion.div
                   key="upload"
@@ -194,7 +264,7 @@ const App = () => (
               }
             />
             <Route 
-              path="/documents" 
+              path="/my-documents" 
               element={
                 <motion.div
                   key="documents"
