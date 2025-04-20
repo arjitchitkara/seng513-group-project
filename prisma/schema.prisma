@@ -14,17 +14,18 @@ datasource db {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
+  id            String             @id @default(uuid())
+  email         String             @unique
   fullName      String
-  role          Role           @default(USER)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  role          Role               @default(USER)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
   profile       Profile?
   documents     Document[]
-  uploads       Document[]     @relation("Uploads")
+  uploads       Document[]         @relation("Uploads")
   bookmarks     Bookmark[]
   enrolledIn    Enrollment[]
+  activities    ModeratorActivity[]
 }
 
 model Profile {
@@ -51,23 +52,24 @@ model Course {
 }
 
 model Document {
-  id            String         @id @default(uuid())
+  id            String              @id @default(uuid())
   title         String
   type          DocumentType
   pages         Int
-  status        ApprovalStatus @default(PENDING)
+  status        ApprovalStatus      @default(PENDING)
   filePath      String
   courseId      String
   userId        String
   uploaderId    String
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  downloads     Int            @default(0)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  downloads     Int                 @default(0)
   rating        Float?
-  course        Course         @relation(fields: [courseId], references: [id])
-  user          User           @relation(fields: [userId], references: [id])
-  uploader      User           @relation("Uploads", fields: [uploaderId], references: [id])
+  course        Course              @relation(fields: [courseId], references: [id])
+  user          User                @relation(fields: [userId], references: [id])
+  uploader      User                @relation("Uploads", fields: [uploaderId], references: [id])
   bookmarks     Bookmark[]
+  moderatorActions ModeratorActivity[] @relation("DocumentActions")
 }
 
 model Bookmark {
@@ -92,6 +94,17 @@ model Enrollment {
   @@unique([userId, courseId])
 }
 
+model ModeratorActivity {
+  id            String         @id @default(uuid())
+  type          ActivityType
+  documentTitle String
+  documentId    String?
+  moderatorId   String
+  timestamp     DateTime       @default(now())
+  moderator     User           @relation(fields: [moderatorId], references: [id])
+  document      Document?      @relation("DocumentActions", fields: [documentId], references: [id])
+}
+
 enum Role {
   USER
   MODERATOR
@@ -111,4 +124,10 @@ enum ApprovalStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+enum ActivityType {
+  APPROVE
+  REJECT
+  NEW
 }
