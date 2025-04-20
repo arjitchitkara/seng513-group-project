@@ -122,7 +122,7 @@ const ModeratorDashboard = () => {
   };
 
   // Calculate document counts from local state only
-  const fetchDocumentCounts = (): void => {
+  const calculateDocumentCounts = () => {
     try {
       setStatsLoading(true);
       setStatsError(null);
@@ -150,9 +150,6 @@ const ModeratorDashboard = () => {
 
   // Setup periodic refresh for stats
   useEffect(() => {
-    // Initial fetch
-    fetchDocumentCounts();
-    
     // Setup interval for refreshing stats every 30 seconds
     const intervalId = setInterval(() => {
       setStatRefreshCounter(prev => prev + 1);
@@ -162,30 +159,15 @@ const ModeratorDashboard = () => {
     return () => clearInterval(intervalId);
   }, []);
   
-  // Refresh stats when counter changes
+  // Calculate stats when counter changes or when documents change
   useEffect(() => {
-    if (statRefreshCounter > 0) {
-      fetchDocumentCounts();
-    }
-  }, [statRefreshCounter]);
-
-  // Refresh stats when document arrays change
-  useEffect(() => {
-    // Update counts based on array lengths for immediate feedback
-    const pendingCount = pendingDocuments.length;
-    const approvedCount = approvedDocuments.length;
-    const rejectedCount = rejectedDocuments.length;
-    const totalCount = pendingCount + approvedCount + rejectedCount;
-    
-    setStats(prevStats => [
-      { ...prevStats[0], value: pendingCount },
-      { ...prevStats[1], value: approvedCount },
-      { ...prevStats[2], value: rejectedCount },
-      { ...prevStats[3], value: totalCount },
-    ]);
-    
-    // No need to call fetchDocumentCounts() here as we've already updated stats
-  }, [pendingDocuments.length, approvedDocuments.length, rejectedDocuments.length]);
+    calculateDocumentCounts();
+  }, [
+    statRefreshCounter,
+    pendingDocuments.length, 
+    approvedDocuments.length, 
+    rejectedDocuments.length
+  ]);
 
   // Determine which documents to fetch based on the path
   useEffect(() => {
@@ -201,8 +183,7 @@ const ModeratorDashboard = () => {
       fetchDocuments(ApprovalStatus.PENDING);
     }
     
-    // Calculate stats
-    fetchDocumentCounts();
+    // Stats will be calculated by the other useEffect when document arrays change
   }, [location.pathname]);
 
   const fetchDocuments = async (status: ApprovalStatus): Promise<void> => {
@@ -251,22 +232,15 @@ const ModeratorDashboard = () => {
       setPendingDocuments(pendingDocuments.filter(doc => doc.id !== documentId));
       setSelectedDocument(null);
       
-      // Optimistically update stats immediately
-      setStats(prevStats => 
-        prevStats.map((stat, index) => {
-          if (index === 0) return {...stat, value: Math.max(0, stat.value - 1)}; // Pending
-          if (index === 1) return {...stat, value: stat.value + 1}; // Approved
-          if (index === 3) return {...stat}; // Total stays the same
-          return stat;
-        })
-      );
+      // Refresh stats to ensure accuracy after error
+      calculateDocumentCounts();
       
       toast.success('Document approved successfully');
     } catch (error) {
       console.error('Error approving document:', error);
       toast.error('Failed to approve document');
       // Refresh stats to ensure accuracy after error
-      fetchDocumentCounts();
+      calculateDocumentCounts();
     }
   };
 
@@ -289,22 +263,15 @@ const ModeratorDashboard = () => {
       setPendingDocuments(pendingDocuments.filter(doc => doc.id !== documentId));
       setSelectedDocument(null);
       
-      // Optimistically update stats immediately
-      setStats(prevStats => 
-        prevStats.map((stat, index) => {
-          if (index === 0) return {...stat, value: Math.max(0, stat.value - 1)}; // Pending
-          if (index === 2) return {...stat, value: stat.value + 1}; // Rejected
-          if (index === 3) return {...stat}; // Total stays the same
-          return stat;
-        })
-      );
+      // Refresh stats to ensure accuracy after error
+      calculateDocumentCounts();
       
       toast.success('Document rejected');
     } catch (error) {
       console.error('Error rejecting document:', error);
       toast.error('Failed to reject document');
       // Refresh stats to ensure accuracy after error
-      fetchDocumentCounts();
+      calculateDocumentCounts();
     }
   };
 
@@ -474,7 +441,7 @@ const ModeratorDashboard = () => {
                       className="ml-auto"
                       onClick={() => {
                         setStatsError(null);
-                        fetchDocumentCounts();
+                        calculateDocumentCounts();
                       }}
                     >
                       Retry
@@ -509,7 +476,7 @@ const ModeratorDashboard = () => {
                         size="icon"
                         className="ml-auto h-8 w-8"
                         onClick={() => {
-                          fetchDocumentCounts();
+                          calculateDocumentCounts();
                           setStatRefreshCounter(prev => prev + 1);
                         }}
                         disabled={statsLoading}
