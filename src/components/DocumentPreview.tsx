@@ -34,6 +34,23 @@ export const DocumentPreview = ({
     return `${url}${url.includes('?') ? '&' : '?'}t=${timestamp}&retry=${retryCount}`;
   };
 
+  // Get Office Web Viewer URL
+  const getOfficeWebViewerUrl = () => {
+    const encodedUrl = encodeURIComponent(getFetchUrl());
+    return `https://view.officeapps.live.com/op/embed.aspx?src=${encodedUrl}`;
+  };
+
+  // Check if file is an Office document
+  const isOfficeDocument = (type: string | null) => {
+    if (!type) return false;
+    return (
+      type.includes('application/vnd.openxmlformats-officedocument.wordprocessingml.document') || // docx
+      type.includes('application/vnd.openxmlformats-officedocument.presentationml.presentation') || // pptx
+      type.includes('application/msword') || // doc
+      type.includes('application/vnd.ms-powerpoint') // ppt
+    );
+  };
+
   useEffect(() => {
     console.log(`[CustomDocPreview] Loading document: ${url}, retry: ${retryCount}`);
     setLoading(true);
@@ -66,6 +83,10 @@ export const DocumentPreview = ({
           return { type, data: null };
         } else if (type?.includes('text/plain')) {
           return response.text().then(text => ({ type, data: text }));
+        } else if (isOfficeDocument(type)) {
+          // For Office documents, we'll use Office Web Viewer
+          setLoading(false);
+          return { type, data: null };
         } else {
           // For unsupported types, we'll just offer download option
           console.log(`[CustomDocPreview] Unsupported content type: ${type}`);
@@ -74,7 +95,7 @@ export const DocumentPreview = ({
         }
       })
       .then(({ type, data }) => {
-        if (!data && !type?.includes('application/pdf')) return; // Skip processing for unsupported types
+        if (!data && !type?.includes('application/pdf') && !isOfficeDocument(type)) return; // Skip processing for unsupported types
         
         if (type?.includes('text/plain')) {
           // Display text content
@@ -135,7 +156,7 @@ export const DocumentPreview = ({
   };
   
   const handleIframeError = () => {
-    setError('Failed to load PDF in iframe');
+    setError('Failed to load document in iframe');
     setLoading(false);
   };
   
@@ -195,6 +216,19 @@ export const DocumentPreview = ({
               </div>
             )}
             
+            {/* Office Document Viewer (using Office Web Viewer) */}
+            {contentType && isOfficeDocument(contentType) && (
+              <div className="h-full w-full overflow-hidden">
+                <iframe 
+                  ref={iframeRef}
+                  src={getOfficeWebViewerUrl()}
+                  className="w-full h-full border-none"
+                  onLoad={handleIframeLoad}
+                  onError={handleIframeError}
+                />
+              </div>
+            )}
+            
             {/* Text Viewer */}
             {contentType?.includes('text/plain') && textContent && (
               <div className="h-full overflow-auto p-4">
@@ -205,7 +239,12 @@ export const DocumentPreview = ({
             )}
             
             {/* Unsupported format */}
-            {contentType && !contentType.includes('application/pdf') && !contentType.includes('text/plain') && !loading && !error && (
+            {contentType && 
+              !contentType.includes('application/pdf') && 
+              !contentType.includes('text/plain') && 
+              !isOfficeDocument(contentType) &&
+              !loading && 
+              !error && (
               <div className="h-full flex items-center justify-center">
                 <div className="text-center p-4">
                   <p className="mb-4">This document format ({contentType}) cannot be previewed directly.</p>
