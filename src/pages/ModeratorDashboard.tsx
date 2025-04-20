@@ -91,7 +91,7 @@ const moderatorStats: StatCard[] = [
   },
 ];
 
-// Add a strongly typed interface for document statistics from the database
+
 interface DocumentStatistics {
   pending: number;
   approved: number;
@@ -130,13 +130,13 @@ const ModeratorDashboard = () => {
     console.log('Searching for:', searchQuery);
   };
 
-  // Fetch all document counts for stats from the database in a single query
-  const fetchDocumentCounts = async (): Promise<void> => {
+  // Calculate document counts from local state only
+  const fetchDocumentCounts = (): void => {
     try {
       setStatsLoading(true);
       setStatsError(null);
       
-      // Use local arrays to calculate counts reliably
+      // Use local arrays to calculate counts
       const pendingCount = pendingDocuments.length;
       const approvedCount = approvedDocuments.length;
       const rejectedCount = rejectedDocuments.length;
@@ -149,27 +149,6 @@ const ModeratorDashboard = () => {
         { ...moderatorStats[2], value: rejectedCount },
         { ...moderatorStats[3], value: totalCount },
       ]);
-      
-      // Try to get counts from API as a background operation
-      try {
-        const { data } = await axios.get<DocumentStatistics>('/api/statistics/documents');
-        
-        // Only update if API returns different values to keep UI consistent
-        if (data.pending !== pendingCount || 
-            data.approved !== approvedCount || 
-            data.rejected !== rejectedCount || 
-            data.total !== totalCount) {
-          setStats([
-            { ...moderatorStats[0], value: data.pending },
-            { ...moderatorStats[1], value: data.approved },
-            { ...moderatorStats[2], value: data.rejected },
-            { ...moderatorStats[3], value: data.total },
-          ]);
-        }
-      } catch (error) {
-        console.error('API fetch for document counts failed, using local counts:', error);
-        // Already using local counts, so no UI change needed
-      }
     } catch (error) {
       console.error('Error calculating document counts:', error);
       setStatsError('Failed to calculate document statistics');
@@ -217,38 +196,32 @@ const ModeratorDashboard = () => {
     // No need to call fetchDocumentCounts() here as we've already updated stats
   }, [pendingDocuments.length, approvedDocuments.length, rejectedDocuments.length]);
 
-  // Fetch recent activity
-  const fetchRecentActivity = async (): Promise<void> => {
-    try {
-      const { data } = await axios.get<ModeratorActivity[]>('/api/moderator/activity');
-      setRecentActivity(data);
-    } catch (error) {
-      console.error('Error fetching recent activity:', error);
-      // If API not available, create mock data
-      setRecentActivity([
-        {
-          id: '1',
-          type: 'APPROVE',
-          documentTitle: 'Chemistry 101: Molecular Structures',
-          documentId: 'doc-1',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
-        },
-        {
-          id: '2',
-          type: 'REJECT',
-          documentTitle: 'Unauthorized Course Materials',
-          documentId: 'doc-2',
-          timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000) // 5 hours ago
-        },
-        {
-          id: '3',
-          type: 'NEW',
-          documentTitle: 'New Documents Pending',
-          documentId: null,
-          timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1 day ago
-        }
-      ]);
-    }
+  // Use local mock data for recent activity
+  const fetchRecentActivity = (): void => {
+    // Create mock data for display
+    setRecentActivity([
+      {
+        id: '1',
+        type: 'APPROVE',
+        documentTitle: 'Chemistry 101: Molecular Structures',
+        documentId: 'doc-1',
+        timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000) // 2 hours ago
+      },
+      {
+        id: '2',
+        type: 'REJECT',
+        documentTitle: 'Unauthorized Course Materials',
+        documentId: 'doc-2',
+        timestamp: new Date(Date.now() - 5 * 60 * 60 * 1000) // 5 hours ago
+      },
+      {
+        id: '3',
+        type: 'NEW',
+        documentTitle: 'New Documents Pending',
+        documentId: null,
+        timestamp: new Date(Date.now() - 24 * 60 * 60 * 1000) // 1 day ago
+      }
+    ]);
   };
 
   // Determine which documents to fetch based on the path
@@ -265,7 +238,7 @@ const ModeratorDashboard = () => {
       fetchDocuments(ApprovalStatus.PENDING);
     }
     
-    // Fetch all counts for stats and recent activity
+    // Calculate stats and set up activity data
     fetchDocumentCounts();
     fetchRecentActivity();
   }, [location.pathname]);
@@ -337,13 +310,6 @@ const ModeratorDashboard = () => {
       
       setRecentActivity(prev => [newActivity, ...prev.slice(0, 9)]);
       
-      // Also send to API to record the activity in the database
-      try {
-        await axios.post('/api/moderator/activity', newActivity);
-      } catch (error) {
-        console.error('Failed to record activity', error);
-      }
-      
       toast.success('Document approved successfully');
     } catch (error) {
       console.error('Error approving document:', error);
@@ -376,7 +342,7 @@ const ModeratorDashboard = () => {
       setStats(prevStats => 
         prevStats.map((stat, index) => {
           if (index === 0) return {...stat, value: Math.max(0, stat.value - 1)}; // Pending
-          if (index === 1) return {...stat, value: stat.value + 1}; // Rejected
+          if (index === 2) return {...stat, value: stat.value + 1}; // Rejected
           if (index === 3) return {...stat}; // Total stays the same
           return stat;
         })
@@ -392,13 +358,6 @@ const ModeratorDashboard = () => {
       };
       
       setRecentActivity(prev => [newActivity, ...prev.slice(0, 9)]);
-      
-      // Also send to API to record the activity in the database
-      try {
-        await axios.post('/api/moderator/activity', newActivity);
-      } catch (error) {
-        console.error('Failed to record activity', error);
-      }
       
       toast.success('Document rejected');
     } catch (error) {
