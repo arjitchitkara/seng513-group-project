@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
 import ProfilePage from "./pages/Profile/ProfilePage";
+import BookmarksPage from "./pages/BookmarksPage";
 
 // New Pages
 import SettingsPage from "./pages/SettingsPage";
@@ -101,8 +102,9 @@ const App = () => (
                   variants={pageVariants}
                   className="min-h-screen"
                 >
-                
+                  <ProtectedRoute>
                     <Dashboard />
+                  </ProtectedRoute>
                 </motion.div>
               } 
             />
@@ -119,6 +121,23 @@ const App = () => (
                 >
                   <ProtectedRoute>
                     <SettingsPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/bookmarks" 
+              element={
+                <motion.div
+                  key="settings"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <BookmarksPage />
                   </ProtectedRoute>
                 </motion.div>
               } 
@@ -167,8 +186,10 @@ const App = () => (
                   exit="exit"
                   variants={pageVariants}
                   className="min-h-screen"
-                >
-                    <ProfilePage />                  
+                >   
+                   <ProtectedRoute>
+                    <ProfilePage />
+                  </ProtectedRoute>                
                 </motion.div>
               }
             />

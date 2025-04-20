@@ -2,12 +2,17 @@
 import React, { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
+import { useQuery } from '@tanstack/react-query';
+import {
+  getProfile,
+  getDocuments,
+  getBookmarks,
+  getEnrollments,
+} from '../../lib/supabase-helpers';
 import {
   Search,
   Bell,
@@ -20,23 +25,76 @@ import {
 } from 'lucide-react';
 import EditProfileModal from './EditProfileModal';
 import { USERS, PROFILES, DOCUMENTS, BOOKMARKS, COURSES, ENROLLMENTS } from '../../components/utils/db/dummy';
+import NotFound from '../NotFound';
 
 const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
-  const { user: authUser } = useAuth();
-  const authName = authUser?.user_metadata.full_name || 'User';
+  // const { user: authUser } = useAuth();
+  // const authName = authUser?.user_metadata.full_name || 'User';
+  // const [searchQuery, setSearchQuery] = useState('');
+  // const [tab, setTab] = useState<'documents' | 'bookmarks' | 'courses'>('documents');
+
+  // const user = USERS.find((u) => u.id === userId);
+  // if (!user) return <NotFound/>;
+
+  // const profile = PROFILES.find((p) => p.userId === user.id);
+  // const joinedDate = new Date(user.createdAt).toLocaleDateString('default', { month: 'long', year: 'numeric' });
+
+  // const docs = DOCUMENTS.filter((d) => d.userId === user.id);
+  // const bookmarks = BOOKMARKS.filter((b) => b.userId === user.id).map((b) => DOCUMENTS.find((d) => d.id === b.documentId));
+  // const courses = ENROLLMENTS.filter((e) => e.userId === user.id).map((e) => COURSES.find((c) => c.id === e.courseId));
+
+
+
+
+  // — 1) Grab the logged‐in user from context
   const [searchQuery, setSearchQuery] = useState('');
+  const { user: user } = useAuth();
+
+  const authName = user.user_metadata.full_name || 'User';
+
+  // — 2) Set up your tabs and search state
   const [tab, setTab] = useState<'documents' | 'bookmarks' | 'courses'>('documents');
 
-  const user = USERS.find((u) => u.id === userId);
-  if (!user) return <p className="text-center mt-10">User not found</p>;
+  // — 3) Fire off your queries
+  const { data: profile, isLoading: loadingProfile } = useQuery({
+    queryKey: ['profile', userId],
+    queryFn: () => getProfile(userId),
+  });
 
-  const profile = PROFILES.find((p) => p.userId === user.id);
-  const joinedDate = new Date(user.createdAt).toLocaleDateString('default', { month: 'long', year: 'numeric' });
+  const { data: docs = [],  isLoading: loadingDocs    } = useQuery({
+    queryKey: ['documents', userId],
+    queryFn: () => getDocuments(userId),
+  });
 
-  const docs = DOCUMENTS.filter((d) => d.userId === user.id);
-  const bookmarks = BOOKMARKS.filter((b) => b.userId === user.id).map((b) => DOCUMENTS.find((d) => d.id === b.documentId));
-  const courses = ENROLLMENTS.filter((e) => e.userId === user.id).map((e) => COURSES.find((c) => c.id === e.courseId));
+  const { data: bms = [],   isLoading: loadingBms     } = useQuery({
+    queryKey: ['bookmarks', userId],
+    queryFn: () => getBookmarks(userId),
+  });
+
+  const { data: enrolls = [], isLoading: loadingEnrs } = useQuery({
+    queryKey: ['enrollments', userId],
+    queryFn: () => getEnrollments(userId),
+  });
+
+  // — 4) Loading / error guard
+  if (loadingProfile || loadingDocs || loadingBms || loadingEnrs) {
+    return <p className="text-center mt-10">Loading…</p>;
+  }
+  if (!profile) {
+    return <NotFound />;
+  }
+
+  // — 5) Pull out the nested data
+  const bookmarks = bms.map((row) => row.document);
+  const courses   = enrolls.map((row) => row.course);
+
+  // — 6) Compute display values
+  const joinedDate = new Date(user.user_metadata.created_at || '').toLocaleDateString(
+    'default',
+    { month: 'long', year: 'numeric' }
+  );
+
 
   return (
     <div className="min-h-screen bg-background/20">
@@ -74,25 +132,19 @@ const ProfilePage: React.FC = () => {
           <div className="flex flex-col items-center text-center space-y-3">
             <Avatar className="w-28 h-28">
               {profile?.avatar ? (
-                <AvatarImage src={profile.avatar} alt={user.fullName} />
+                <AvatarImage src={profile.avatar} alt={profile.fullName} />
               ) : (
-                <AvatarFallback>{user.fullName.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{profile.fullName.charAt(0)}</AvatarFallback>
               )}
             </Avatar>
-            <h1 className="text-3xl font-bold text-foreground">{user.fullName}</h1>
+            <h1 className="text-3xl font-bold text-foreground">{profile.fullName}</h1>
             <p className="text-xs text-muted-foreground capitalize">{user.role.toLowerCase()}</p>
             <div className="flex items-center space-x-3 text-muted-foreground">
-              <span>@{user.username}</span>
               <Calendar className="w-4 h-4" />
               <span>Joined {joinedDate}</span>
             </div>
             {profile?.bio && <p className="text-foreground/80 max-w-xl">{profile.bio}</p>}
-            {user.link && (
-              <a href={user.link} target="_blank" rel="noreferrer" className="inline-flex items-center text-primary hover:underline">
-                <LinkIcon className="w-4 h-4 mr-1" />
-                {user.link.replace(/^https?:\/\//, '')}
-              </a>
-            )}
+            
             <div className="flex gap-4 mt-4">
               <EditProfileModal />
               <AnimatedButton hoverLift ripple gradient>Dashboard</AnimatedButton>

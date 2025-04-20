@@ -308,19 +308,22 @@ const Dashboard = () => {
             </form>
 
             <div className="flex items-center space-x-4">
-              <button className="p-2 rounded-full bg-secondary/70 hover:bg-secondary transition-colors relative">
+
+              <Link to="/notifications" className="p-2 rounded-full bg-secondary/70 hover:bg-secondary relative">
                 <Bell className="h-5 w-5 text-foreground/70" />
-                {/* Example notification badge */}
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full">
-                  3
-                </span>
-              </button>
-              <button className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary transition-colors">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="h-4 w-4 text-primary" />
-                </div>
-                <span className="text-sm font-medium">{userName.split(' ')[0]}</span>
-              </button>
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full">3</span>
+              </Link>
+
+              <Link
+              to={`/profile/${user.id}`}
+              className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary"
+            >
+              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                <User className="h-4 w-4 text-primary" />
+              </div>
+              <span className="text-sm font-medium">{userName.split(' ')[0]}</span>
+            </Link>
+
             </div>
           </div>
         </header>
@@ -416,7 +419,7 @@ const Dashboard = () => {
                     </div>
                     <div className="flex space-x-2">
                       <Button size="sm" variant="outline">
-                        View
+                      <Link to={`/documents/${doc.id}`}>View</Link>
                       </Button>
                       <Button size="sm" variant="ghost">
                         <Bookmark className="h-4 w-4" />
@@ -520,7 +523,7 @@ const Dashboard = () => {
               </div>
               <div className="mt-4 text-center">
                 <Button variant="outline" className="mt-2">
-                  View All Recommendations
+                  <Link to="/dashboard/recommendations">View All Recommendations</Link>
                 </Button>
               </div>
             </GlassMorphism>
