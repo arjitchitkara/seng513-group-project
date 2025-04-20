@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { Session, User, AuthError } from '@supabase/supabase-js';
+import { supabase } from './supabase-client';
 import { useToast } from '@/hooks/use-toast';
 
 type AuthContextType = {
@@ -9,7 +9,7 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, role?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (data: { fullName?: string; avatar?: string }) => Promise<void>;
@@ -94,10 +94,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       navigate('/auth/login');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error creating account',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -105,26 +105,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, role: string = 'USER') => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
 
+      // Update user metadata with the selected role
+      if (data?.user) {
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: { role }
+        });
+        
+        if (updateError) {
+          console.error('Error updating user role:', updateError);
+        }
+      }
+
       toast({
         title: 'Welcome back!',
         description: 'You have successfully signed in.',
       });
       
-      navigate('/dashboard');
-    } catch (error: any) {
+      // Redirect based on role
+      if (role === 'MODERATOR') {
+        navigate('/moderator-dashboard');
+      } else if (role === 'ADMIN') {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (error: unknown) {
+      const authError = error as AuthError;
       toast({
         title: 'Error signing in',
-        description: error.message,
+        description: authError.message,
         variant: 'destructive',
       });
     } finally {
@@ -139,10 +158,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       
       navigate('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error signing out',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -160,10 +179,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Password reset email sent',
         description: 'Check your email for a password reset link.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error resetting password',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -206,10 +225,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Profile updated',
         description: 'Your profile has been updated successfully.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error updating profile',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
