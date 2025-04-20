@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
-import { Download, Presentation } from 'lucide-react';
+import { Download, Presentation, AlertTriangle, CheckCircle, FileText } from 'lucide-react';
 
 interface DocumentPreviewProps {
   url: string;
@@ -159,41 +159,48 @@ export const DocumentPreview = ({
   };
   
   return (
-    <div className="flex flex-col h-full w-full border rounded-lg overflow-hidden bg-card">
-      <div className="flex justify-between items-center p-3 border-b bg-muted/50">
+    <div className="flex flex-col h-full w-full border rounded-lg overflow-hidden bg-card/90 shadow-sm">
+      <div className="flex justify-between items-center p-3 border-b bg-muted/30 backdrop-blur-sm">
         <div className="flex items-center">
-          <h3 className="font-medium truncate max-w-[200px]">{fileName}</h3>
+          <h3 className="font-medium truncate max-w-[200px] text-sm">{fileName}</h3>
           {isVerified && (
             <span className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
               Verified
             </span>
           )}
         </div>
-        <Button variant="outline" size="sm" onClick={handleDownload}>
-          Download
+        <Button variant="outline" size="sm" onClick={handleDownload} className="h-8 gap-1">
+          <Download className="h-3.5 w-3.5" />
+          <span className="hidden sm:inline">Download</span>
         </Button>
       </div>
 
-      <div className="flex-1 min-h-[400px] relative" ref={containerRef}>
+      <div className="flex-1 min-h-[400px] relative overflow-hidden" ref={containerRef}>
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
-            <div className="animate-spin h-6 w-6 border-t-2 border-primary rounded-full" />
+          <div className="absolute inset-0 flex items-center justify-center bg-background/80 backdrop-blur-sm z-10">
+            <div className="animate-spin h-6 w-6 border-2 border-t-transparent border-primary rounded-full" />
           </div>
         )}
         
         {error ? (
-          <div className="p-4 text-center text-destructive">
-            <p>Error loading document: {error}</p>
-            <div className="mt-2 flex flex-col gap-2">
+          <div className="p-6 flex flex-col items-center justify-center h-full text-center">
+            <div className="bg-destructive/10 p-3 rounded-full mb-4">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <p className="text-destructive font-medium mb-2">Failed to load document</p>
+            <p className="text-muted-foreground text-sm mb-4 max-w-md">{error}</p>
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button 
                 variant="outline" 
                 onClick={handleRetry}
+                className="sm:w-auto w-full"
               >
                 Retry
               </Button>
               <Button 
                 variant="default" 
                 onClick={handleDownload}
+                className="sm:w-auto w-full"
               >
                 Download Instead
               </Button>
@@ -234,16 +241,15 @@ export const DocumentPreview = ({
                   <p className="mb-6 text-gray-600">
                     This is a PowerPoint presentation that needs to be downloaded to view all slides and content properly.
                   </p>
-                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                    <Button 
-                      variant="default" 
-                      onClick={handleDownload}
-                      className="gap-2"
-                    >
-                      <Download size={16} />
-                      Download Presentation
-                    </Button>
-                  </div>
+                  <Button 
+                    variant="default" 
+                    onClick={handleDownload}
+                    className="gap-2 px-6"
+                    size="lg"
+                  >
+                    <Download size={16} />
+                    Download Presentation
+                  </Button>
                 </div>
               </div>
             )}
@@ -255,13 +261,21 @@ export const DocumentPreview = ({
               !isPowerPointFile(contentType, fileName) &&
               !loading && 
               !error && (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-center p-4">
-                  <p className="mb-4">This document format ({contentType}) cannot be previewed directly.</p>
+              <div className="h-full flex items-center justify-center p-6">
+                <div className="text-center p-6 rounded-xl bg-muted/30 border shadow-sm max-w-md">
+                  <div className="w-16 h-16 mx-auto mb-4 bg-muted/50 rounded-full flex items-center justify-center">
+                    <FileText size={28} className="text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">Unsupported Format</h3>
+                  <p className="mb-4 text-muted-foreground text-sm">
+                    This document format ({contentType}) cannot be previewed directly in the browser.
+                  </p>
                   <Button 
                     variant="default" 
                     onClick={handleDownload}
+                    className="gap-2"
                   >
+                    <Download size={16} />
                     Download to View
                   </Button>
                 </div>
@@ -272,19 +286,23 @@ export const DocumentPreview = ({
       </div>
 
       {isModeratorView && (
-        <div className="p-3 border-t flex justify-end gap-2">
+        <div className="p-3 border-t flex justify-end gap-2 bg-muted/20">
           <Button 
             variant="outline" 
             size="sm" 
             onClick={onReject}
+            className="gap-1"
           >
+            <AlertTriangle className="h-3.5 w-3.5" />
             Reject
           </Button>
           <Button 
             variant="default" 
             size="sm" 
             onClick={onApprove}
+            className="gap-1 bg-green-600 hover:bg-green-700"
           >
+            <CheckCircle className="h-3.5 w-3.5" />
             Approve
           </Button>
         </div>
