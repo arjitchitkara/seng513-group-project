@@ -1,12 +1,11 @@
-// src/pages/BookmarksPage.tsx
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { Search, Bookmark, FileText, CheckCircle, Bell, User } from 'lucide-react';
+import {getBookmarks,} from '../lib/supabase-helpers';
 
-// Dummy data for local prototyping:
 import { BOOKMARKS, DOCUMENTS, COURSES } from '../components/utils/db/dummy';
 
 const BookmarksPage: React.FC = () => {

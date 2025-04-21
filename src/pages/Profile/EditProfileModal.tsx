@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // EditProfileModal.tsx
 import React, { useState, ChangeEvent, FormEvent } from 'react';
 import { createPortal } from 'react-dom';
@@ -6,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { X } from 'lucide-react';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import {updateProfile} from '../../lib/supabase-helpers';
 
 interface EditProfileForm {
   fullName: string;
@@ -16,8 +18,15 @@ interface EditProfileForm {
   avatarFile: File | null;
 }
 
-const EditProfileModal: React.FC = () => {
+interface Props {
+  userId: string;
+  onSuccess: () => void;
+}
+
+
+const EditProfileModal: React.FC<Props> = ({ userId, onSuccess }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<EditProfileForm>({
     fullName: '',
     email: '',
@@ -26,6 +35,7 @@ const EditProfileModal: React.FC = () => {
     newPassword: '',
     avatarFile: null,
   });
+
 
   const handleChange = (e: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLTextAreaElement>) => {
     const target = e.target as HTMLInputElement;
@@ -39,9 +49,30 @@ const EditProfileModal: React.FC = () => {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    console.log('Profile data:', formData);
     setIsOpen(false);
   };
+
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await updateProfile(userId, {
+        fullName: formData.fullName,
+        email: formData.email,
+        newPassword: formData.newPassword,
+        bio: formData.bio,
+        avatarFile: formData.avatarFile,
+      });
+      onSuccess();
+      setIsOpen(false);
+    } catch (error: any) {
+      alert('Update failed: ' + error.message)
+    } finally {
+      setLoading(false);
+    }
+    onSuccess();
+  };
+
 
   const modalContent = (
     <div className="fixed inset-0 flex items-center justify-center z-[9999]">
@@ -80,7 +111,7 @@ const EditProfileModal: React.FC = () => {
               </div>
             </div>
             <div className="flex justify-end">
-              <AnimatedButton hoverScale gradient type="submit">Save Changes</AnimatedButton>
+              <AnimatedButton hoverScale gradient type="submit" disabled={loading} onClick={handleSave}> {loading ? 'Saving…' : 'Save Changes'} </AnimatedButton>
             </div>
           </form>
         </GlassMorphism>

@@ -6,7 +6,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getProfile,
   getDocuments,
@@ -24,37 +24,51 @@ import {
   BookmarkIcon
 } from 'lucide-react';
 import EditProfileModal from './EditProfileModal';
-import { USERS, PROFILES, DOCUMENTS, BOOKMARKS, COURSES, ENROLLMENTS } from '../../components/utils/db/dummy';
 import NotFound from '../NotFound';
+
+const ONE_HOUR = 1000 * 60 * 60;
+const TWENTY_FOUR_HOURS = ONE_HOUR * 24;
 
 const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
-
   const [searchQuery, setSearchQuery] = useState('');
+  const queryClient = useQueryClient();
   const { user: user } = useAuth();
 
   const authName = user.user_metadata.full_name || 'User';
 
   const [tab, setTab] = useState<'documents' | 'bookmarks' | 'courses'>('documents');
 
-  const { data: profile, isLoading: loadingProfile } = useQuery({
+  const queryOptions = {
+    staleTime: ONE_HOUR,
+    cacheTime: TWENTY_FOUR_HOURS,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  };
+
+  const { data: profile, isLoading: loadingProfile} = useQuery({
     queryKey: ['profile', userId],
     queryFn: () => getProfile(userId),
+    ...queryOptions,
   });
 
-  const { data: docs = [],  isLoading: loadingDocs    } = useQuery({
+  const { data: docs = [],isLoading: loadingDocs} = useQuery({
     queryKey: ['documents', userId],
     queryFn: () => getDocuments(userId),
+    ...queryOptions,
   });
 
-  const { data: bms = [],   isLoading: loadingBms     } = useQuery({
+  const { data: bms = [],   isLoading: loadingBms} = useQuery({
     queryKey: ['bookmarks', userId],
     queryFn: () => getBookmarks(userId),
+    ...queryOptions,
   });
 
   const { data: enrolls = [], isLoading: loadingEnrs } = useQuery({
     queryKey: ['enrollments', userId],
     queryFn: () => getEnrollments(userId),
+    ...queryOptions,
   });
 
   if (loadingProfile || loadingDocs || loadingBms || loadingEnrs) {
@@ -63,6 +77,7 @@ const ProfilePage: React.FC = () => {
   if (!profile) {
     return <NotFound />;
   }
+  
 
   const bookmarks = bms.map((row) => row.document);
   const courses   = enrolls.map((row) => row.course);
@@ -75,7 +90,7 @@ const ProfilePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-background/20">
-      {/* Dashboard Header */}
+      {/* Page Header */}
       <header className="bg-background/50 backdrop-blur-sm sticky top-0 z-30 border-b border-border/50">
         <div className="px-6 py-4 flex items-center justify-between">
           <form onSubmit={(e) => e.preventDefault()} className="relative hidden md:block w-96">
@@ -108,8 +123,8 @@ const ProfilePage: React.FC = () => {
         <GlassMorphism className="p-8 mb-8 bg-primary/20" intensity="medium">
           <div className="flex flex-col items-center text-center space-y-3">
             <Avatar className="w-28 h-28">
-              {profile?.avatar ? (
-                <AvatarImage src={profile.avatar} alt={profile.fullName} />
+              {profile?.profile?.avatar ? (
+                <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
               ) : (
                 <AvatarFallback>{profile.fullName.charAt(0)}</AvatarFallback>
               )}
@@ -120,10 +135,16 @@ const ProfilePage: React.FC = () => {
               <Calendar className="w-4 h-4" />
               <span>Joined {joinedDate}</span>
             </div>
-            {profile?.bio && <p className="text-foreground/80 max-w-xl">{profile.profile.bio}</p>}
+            {profile?.profile?.bio && <p className="text-foreground/80 max-w-xl">{profile.profile.bio}</p>}
             
             <div className="flex gap-4 mt-4">
-              <EditProfileModal />
+              <EditProfileModal
+                onSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ['profile', userId] });
+                  queryClient.invalidateQueries({ queryKey: ['document', userId] });
+                  queryClient.invalidateQueries({ queryKey: ['bookmarks', userId] });
+                  queryClient.invalidateQueries({ queryKey: ['enrollments', userId] });
+                } } userId={userId}               />
               <AnimatedButton hoverLift ripple gradient>Dashboard</AnimatedButton>
             </div>
           </div>
@@ -152,7 +173,7 @@ const ProfilePage: React.FC = () => {
         <div className="space-y-6">
           {/* Documents */}
           {tab === 'documents' && (docs.length ? docs.map((doc) => {
-            const course = COURSES.find((c) => c.id === doc.courseId);
+            const course = courses.find((c) => c.id === doc.courseId);
             return (
               <GlassMorphism key={doc.id} className="p-4" intensity="light">
                 <div className="flex items-center space-x-4">
