@@ -40,7 +40,7 @@ export const Header = () => {
   const navigation = [
     { name: 'Home', href: '/' },
     { name: 'Courses', href: '/courses' },
-    { name: 'Study Resources', href: '/resources' },
+    { name: 'Study Resources', href: '/browse-documents' },
     { name: 'About', href: '/about' },
   ];
 

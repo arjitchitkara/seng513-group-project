@@ -41,7 +41,7 @@ export const SearchBar = ({ searchLabel, handleSearch }) => {
             ref={inputRef}
           />
           <button
-            className={`absolute right-1 flex items-center rounded-${isMobile ? "full" : "md"} bg-primary py-${isMobile ? "2.5" : "2"} px-2.5 border border-transparent text-center text-sm text-white transition-all shadow-sm hover:shadow focus:bg-primary/90 focus:shadow-none active:bg-primary/90 hover:bg-primary/90 active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none`}
+            className={`absolute right-1 flex items-center rounded-${isMobile ? "full" : "md"} bg-primary py-${isMobile ? "2.5" : "2"} p-2.5 border border-transparent text-center text-sm text-white transition-all shadow-sm hover:shadow focus:bg-primary/90 focus:shadow-none active:bg-primary/90 hover:bg-primary/90 active:shadow-none disabled:pointer-events-none disabled:opacity-50 disabled:shadow-none`}
             type="submit"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={`w-4 h-4 ${isMobile ? "" : "mr-2"}`}>

@@ -11,24 +11,28 @@ const FeaturesSection = () => {
       description:
         'Access thousands of course documents, study guides, and notes across various subjects and disciplines.',
       icon: FileText,
+      route: '/browse-documents'
     },
     {
       title: 'Academic Integrity',
       description:
         'Our moderation system ensures all content adheres to academic integrity policies and ethical guidelines.',
       icon: Shield,
+      route: '/academic-integrity'
     },
     {
       title: 'Easy Uploads',
       description:
         'Share your study materials with others. Upload documents securely and contribute to our growing knowledge base.',
       icon: Upload,
+      route: '/upload'
     },
     {
       title: 'Advanced Search',
       description:
         'Find exactly what you need with our powerful search functionality. Filter by course, subject, document type, and more.',
       icon: Search,
+      route: '/browse-documents'
     },
   ];
 
@@ -70,7 +74,7 @@ const FeaturesSection = () => {
                 <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
                 <p className="text-muted-foreground text-sm flex-1">{feature.description}</p>
                 <Link
-                  to={`/features/${feature.title.toLowerCase().replace(/\s+/g, '-')}`}
+                  to={feature.route}
                   className="inline-flex items-center mt-4 text-sm text-primary hover:text-primary/80 transition-all"
                 >
                   Learn more <ChevronRight className="ml-1 h-4 w-4" />

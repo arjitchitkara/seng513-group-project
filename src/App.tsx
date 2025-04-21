@@ -18,6 +18,9 @@ import UploadDocumentPage from "./pages/UploadDocumentPage";
 import MyDocumentsPage from "./pages/MyDocumentsPage";
 
 import Courses from "./pages/Courses";
+import Documents from "./pages/Documents";
+import AcademicIntegrity from "./pages/AcademicIntegrity";
+import About from "./pages/About";
 
 // Create a client
 const queryClient = new QueryClient({
@@ -193,6 +196,58 @@ const App = () => (
                 </motion.div>
               } 
             />
+            <Route 
+              path="/browse-documents" 
+              element={
+                <motion.div
+                  key="browse-documents"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <Documents />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/academic-integrity" 
+              element={
+                <motion.div
+                  key="browse-documents"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <AcademicIntegrity />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/about" 
+              element={
+                <motion.div
+                  key="browse-documents"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <About />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            
             <Route 
               path="*" 
               element={
