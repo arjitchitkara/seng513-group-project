@@ -347,11 +347,6 @@ const Dashboard = () => {
 
             <div className="flex items-center space-x-4">
 
-              <Link to="/notifications" className="p-2 rounded-full bg-secondary/70 hover:bg-secondary relative">
-                <Bell className="h-5 w-5 text-foreground/70" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full">3</span>
-              </Link>
-
               <Link
               to={`/profile/${user.id}`}
               className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary"
