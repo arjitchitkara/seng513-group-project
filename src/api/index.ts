@@ -1,6 +1,7 @@
 import path from 'path';
 import { config } from 'dotenv';
 import { fileURLToPath } from 'url';
+import {v2 as cloudinary} from "cloudinary";
 
 // Get the current file path and directory for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -19,7 +20,10 @@ if (envResult.error) {
     'R2_SECRET_ACCESS_KEY': process.env.R2_SECRET_ACCESS_KEY ? 'set' : 'not set',
     'R2_BUCKET_NAME': process.env.R2_BUCKET_NAME ? process.env.R2_BUCKET_NAME : 'not set',
     'DATABASE_URL': process.env.DATABASE_URL ? 'set' : 'not set',
-  };
+    'CLOUDINARY_CLOUD_NAME=': process.env.CLOUDINARY_CLOUD_NAME,
+    'CLOUDINARY_API_KEY=': process.env.CLOUDINARY_API_KEY ? 'set' : 'NOT SET',
+    'CLOUDINARY_API_SECRET=': process.env.CLOUDINARY_API_SECRET ? 'set' : 'NOT SET',
+    };
   console.log('Environment variables status:', envDebug);
 }
 
@@ -35,9 +39,16 @@ import { initDatabase } from './db';
 import { uploadDocument } from '../../backend/r2/documentService';
 import { convertAndCompressFile } from '../../backend/conversion/fileConverter';
 
+
 interface MulterRequest extends Request {
   file: Express.Multer.File;
 }
+
+cloudinary.config({
+	cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+	api_key: process.env.CLOUDINARY_API_KEY!,
+	api_secret: process.env.CLOUDINARY_API_SECRET!,
+});
 
 const app = express();
 const port = process.env.API_PORT || 3001;
