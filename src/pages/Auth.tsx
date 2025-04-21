@@ -8,6 +8,7 @@ import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { Check, EyeOff, Eye, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const Auth = () => {
   const { mode = 'login' } = useParams<{ mode: 'login' | 'register' | string }>();
@@ -18,7 +19,7 @@ const Auth = () => {
     password: '',
     confirmPassword: '',
     fullName: '',
-    role: 'user'
+    role: 'USER'
   });
   const [errors, setErrors] = useState({
     email: '',
@@ -36,7 +37,7 @@ const Auth = () => {
       password: '',
       confirmPassword: '',
       fullName: '',
-      role: 'user'
+      role: 'USER'
     });
     setErrors({
       email: '',
@@ -99,13 +100,17 @@ const Auth = () => {
     setFormData({ ...formData, [name]: value });
   };
 
+  const handleRoleChange = (value: string) => {
+    setFormData({ ...formData, role: value });
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (validateForm()) {
       try {
         if (mode === 'login') {
-          await signIn(formData.email, formData.password);
+          await signIn(formData.email, formData.password, formData.role);
         } else if (mode === 'register') {
           await signUp(formData.email, formData.password, formData.fullName);
         }
@@ -261,6 +266,31 @@ const Auth = () => {
                 {errors.confirmPassword && (
                   <p className="text-destructive text-xs mt-1">{errors.confirmPassword}</p>
                 )}
+              </div>
+            )}
+            
+            {mode === 'login' && (
+              <div className="space-y-2">
+                <Label>Select Role</Label>
+                <RadioGroup 
+                  defaultValue="USER" 
+                  value={formData.role}
+                  onValueChange={handleRoleChange}
+                  className="flex flex-col space-y-2 mt-2"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="USER" id="user" />
+                    <Label htmlFor="user" className="cursor-pointer">User</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="MODERATOR" id="moderator" />
+                    <Label htmlFor="moderator" className="cursor-pointer">Moderator</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="ADMIN" id="admin" />
+                    <Label htmlFor="admin" className="cursor-pointer">Admin</Label>
+                  </div>
+                </RadioGroup>
               </div>
             )}
             

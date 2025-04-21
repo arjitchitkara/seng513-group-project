@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Session, User } from '@supabase/supabase-js';
-import { supabase } from './supabase';
+import { Session, User, AuthError } from '@supabase/supabase-js';
+import { supabase } from './supabase-client';
 import { useToast } from '@/hooks/use-toast';
 
 type AuthContextType = {
@@ -9,10 +9,11 @@ type AuthContextType = {
   user: User | null;
   loading: boolean;
   signUp: (email: string, password: string, fullName: string) => Promise<void>;
-  signIn: (email: string, password: string) => Promise<void>;
+  signIn: (email: string, password: string, role?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (data: { fullName?: string; avatar?: string }) => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +42,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+  const refreshUser = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error) setUser(data.user);
+    console.log('[Auth] got user metadata:', data.user?.user_metadata)
+  };
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
@@ -94,10 +100,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
       
       navigate('/auth/login');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error creating account',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -105,26 +111,45 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signIn = async (email: string, password: string, role: string = 'USER') => {
     try {
       setLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error, data } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
 
+      // Update user metadata with the selected role
+      if (data?.user) {
+        const { error: updateError } = await supabase.auth.updateUser({
+          data: { role }
+        });
+        
+        if (updateError) {
+          console.error('Error updating user role:', updateError);
+        }
+      }
+
       toast({
         title: 'Welcome back!',
         description: 'You have successfully signed in.',
       });
       
-      navigate('/dashboard');
-    } catch (error: any) {
+      // Redirect based on role
+      if (role === 'MODERATOR') {
+        navigate('/moderator-dashboard');
+      } else if (role === 'ADMIN') {
+        navigate('/admin-dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (error: unknown) {
+      const authError = error as AuthError;
       toast({
         title: 'Error signing in',
-        description: error.message,
+        description: authError.message,
         variant: 'destructive',
       });
     } finally {
@@ -139,10 +164,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) throw error;
       
       navigate('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error signing out',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -160,10 +185,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Password reset email sent',
         description: 'Check your email for a password reset link.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error resetting password',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
@@ -180,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Update auth metadata if fullName provided
       if (data.fullName) {
         const { error: updateError } = await supabase.auth.updateUser({
-          data: { full_name: data.fullName }
+          data: { fullName: data.fullName }
         });
         
         if (updateError) throw updateError;
@@ -188,16 +213,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Update profile
       const updates = {
-        ...(data.fullName && { full_name: data.fullName }),
+        ...(data.fullName && { fullName: data.fullName }),
         ...(data.avatar && { avatar: data.avatar }),
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       
       if (Object.keys(updates).length > 0) {
         const { error } = await supabase
-          .from('profiles')
+          .from('Profile')
           .update(updates)
-          .eq('user_id', user.id);
+          .eq('userId', user.id);
           
         if (error) throw error;
       }
@@ -206,13 +231,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         title: 'Profile updated',
         description: 'Your profile has been updated successfully.',
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
         title: 'Error updating profile',
-        description: error.message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred',
         variant: 'destructive',
       });
     } finally {
+      await refreshUser();
       setLoading(false);
     }
   };
@@ -226,6 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     resetPassword,
     updateProfile,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

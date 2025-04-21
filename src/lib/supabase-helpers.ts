@@ -1,4 +1,5 @@
-import { supabase } from './supabase';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { supabase } from './supabase-client';
 import type { Database } from '@/types/supabase';
 import { User } from '@supabase/supabase-js';
 
@@ -7,30 +8,108 @@ export type Tables = Database['public']['Tables'];
 // Profile helpers
 export async function getProfile(userId: string) {
   const { data, error } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('user_id', userId)
+    .from('User')
+    .select(`
+      id,
+      email,
+      fullName,
+      role,
+      createdAt,
+      updatedAt,
+      profile:Profile(
+        id,
+        userId,
+        bio,
+        avatar
+      )
+    `)
+    .eq('id', userId)
     .single();
-  
   if (error) throw error;
-  return data;
+  if (data) {
+    return {
+      ...data,
+      profile: data.profile[0] ?? null   // now `profile` is an object or null
+    }
+  }
+  return null
 }
 
-export async function updateProfile(userId: string, updates: Partial<Tables['profiles']['Update']>) {
-  const { error } = await supabase
-    .from('profiles')
-    .update(updates)
-    .eq('user_id', userId);
+interface UpdateProfileOpts {
+  fullName?: string
+  email?: string
+  currentPassword?: string
+  newPassword?: string
+  bio?: string
+  avatarFile?: File
+}
+
+export async function updateProfile(
+  userId: string,
+  opts: UpdateProfileOpts
+) {
+  if (opts.email || opts.newPassword) {
+    const { error: authErr } = await supabase.auth.updateUser({
+      email: opts.email,
+      password: opts.newPassword,
+    })
+    if (authErr) throw authErr
+  }
+
+  const userUpdates: any = {}
+  if (opts.fullName) userUpdates.fullName = opts.fullName
+  if (opts.email)    userUpdates.email    = opts.email
+
+  if (Object.keys(userUpdates).length) {
+    const { error: userErr } = await supabase
+    .from('User')   
+      .update(userUpdates)
+      .eq('id', userId)
+
+    if (userErr) throw userErr
+  }
+
+  let avatarUrl: string | null = null
+  if (opts.avatarFile) {
+
+    const fd = new FormData()
+    fd.append('avatar', opts.avatarFile)
+
+    const url = `http://localhost:3001/api/users/${userId}/avatar`
+    console.log(`[API] Uploading avatar to ${url}`)
+    const res = await fetch(url, {
+      method: 'POST',
+      body: fd,
+    })
+
+    if (!res.ok) {
+      const text = await res.text()
+      throw new Error(`Avatar upload failed: ${text}`)
+    }
+    const { avatarUrl: uploaded } = await res.json()
+    avatarUrl = uploaded
+  }
+
   
-  if (error) throw error;
+  const profileUpdates: any = {}
+  if (opts.bio     !== undefined) profileUpdates.bio    = opts.bio
+  if (avatarUrl)                  profileUpdates.avatar = avatarUrl
+
+  if (Object.keys(profileUpdates).length) {
+    const { error: profErr } = await supabase
+      .from('Profile')           
+      .update(profileUpdates)
+      .eq('userId', userId)      
+    if (profErr) throw new Error(profErr.message)
+  }
 }
 
 // Course helpers
 export async function getCourses(limit = 10, offset = 0) {
   const { data, error } = await supabase
-    .from('courses')
+    .from('Course')
     .select('*')
-    .order('created_at', { ascending: false })
+    .order('createdAt', { ascending: false })
     .range(offset, offset + limit - 1);
   
   if (error) throw error;
@@ -39,7 +118,7 @@ export async function getCourses(limit = 10, offset = 0) {
 
 export async function getCourseById(courseId: string) {
   const { data, error } = await supabase
-    .from('courses')
+    .from('Course')
     .select('*')
     .eq('id', courseId)
     .single();
@@ -50,7 +129,7 @@ export async function getCourseById(courseId: string) {
 
 export async function createCourse(course: Tables['courses']['Insert']) {
   const { data, error } = await supabase
-    .from('courses')
+    .from('Course')
     .insert([course])
     .select()
     .single();
@@ -62,12 +141,12 @@ export async function createCourse(course: Tables['courses']['Insert']) {
 // Document helpers
 export async function getDocuments(courseId?: string, limit = 10, offset = 0) {
   let query = supabase
-    .from('documents')
-    .select('*, course:courses(*), uploader:users(id, full_name)')
-    .order('created_at', { ascending: false });
+    .from('Document')
+    .select('*, course:Course(*), uploader:User(id, fullName)')
+    .order('createdAt', { ascending: false });
   
   if (courseId) {
-    query = query.eq('course_id', courseId);
+    query = query.eq('courseId', courseId);
   }
   
   const { data, error } = await query.range(offset, offset + limit - 1);
@@ -78,8 +157,8 @@ export async function getDocuments(courseId?: string, limit = 10, offset = 0) {
 
 export async function getDocumentById(documentId: string) {
   const { data, error } = await supabase
-    .from('documents')
-    .select('*, course:courses(*), uploader:users(id, full_name)')
+    .from('Document')
+    .select('*, course:Course(*), uploader:User(id, fullName)')
     .eq('id', documentId)
     .single();
   
@@ -89,7 +168,7 @@ export async function getDocumentById(documentId: string) {
 
 export async function createDocument(document: Tables['documents']['Insert']) {
   const { data, error } = await supabase
-    .from('documents')
+    .from('Document')
     .insert([document])
     .select()
     .single();
@@ -100,7 +179,7 @@ export async function createDocument(document: Tables['documents']['Insert']) {
 
 export async function updateDocumentStatus(documentId: string, status: 'PENDING' | 'APPROVED' | 'REJECTED') {
   const { error } = await supabase
-    .from('documents')
+    .from('Document')
     .update({ status })
     .eq('id', documentId);
   
@@ -110,10 +189,10 @@ export async function updateDocumentStatus(documentId: string, status: 'PENDING'
 // Bookmark helpers
 export async function getBookmarks(userId: string, limit = 10, offset = 0) {
   const { data, error } = await supabase
-    .from('bookmarks')
-    .select('*, document:documents(*)')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    .from('Bookmark')
+    .select('*, document:Document(*, course:Course(*))')
+    .eq('userId', userId)
+    .order('createdAt', { ascending: false })
     .range(offset, offset + limit - 1);
   
   if (error) throw error;
@@ -122,7 +201,7 @@ export async function getBookmarks(userId: string, limit = 10, offset = 0) {
 
 export async function addBookmark(userId: string, documentId: string) {
   const { data, error } = await supabase
-    .from('bookmarks')
+    .from('Bookmark')
     .insert([{ user_id: userId, document_id: documentId }])
     .select()
     .single();
@@ -133,9 +212,9 @@ export async function addBookmark(userId: string, documentId: string) {
 
 export async function removeBookmark(userId: string, documentId: string) {
   const { error } = await supabase
-    .from('bookmarks')
+    .from('Bookmark')
     .delete()
-    .match({ user_id: userId, document_id: documentId });
+    .match({ userId: userId, documentId: documentId });
   
   if (error) throw error;
 }
@@ -143,10 +222,10 @@ export async function removeBookmark(userId: string, documentId: string) {
 // Enrollment helpers
 export async function getEnrollments(userId: string, limit = 10, offset = 0) {
   const { data, error } = await supabase
-    .from('enrollments')
-    .select('*, course:courses(*)')
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    .from('Enrollment')
+    .select('*, course:Course(*)')
+    .eq('userId', userId)
+    .order('createdAt', { ascending: false })
     .range(offset, offset + limit - 1);
   
   if (error) throw error;
@@ -155,29 +234,29 @@ export async function getEnrollments(userId: string, limit = 10, offset = 0) {
 
 export async function enrollInCourse(userId: string, courseId: string) {
   const { data, error } = await supabase
-    .from('enrollments')
-    .insert([{ user_id: userId, course_id: courseId }])
+    .from('Enrollment')
+    .insert([{ userId: userId, courseId: courseId }])
     .select()
     .single();
   
   if (error && error.code !== '23505') throw error; // Ignore duplicate key error
   
   // Increment the course user count
-  await supabase.rpc('increment_course_user_count', { course_id: courseId });
+  await supabase.rpc('increment_course_user_count', { courseIdd: courseId });
   
   return data;
 }
 
 export async function unenrollFromCourse(userId: string, courseId: string) {
   const { error } = await supabase
-    .from('enrollments')
+    .from('Enrollments')
     .delete()
-    .match({ user_id: userId, course_id: courseId });
+    .match({ userId: userId, courseId: courseId });
   
   if (error) throw error;
   
   // Decrement the course user count
-  await supabase.rpc('decrement_course_user_count', { course_id: courseId });
+  await supabase.rpc('decrement_course_user_count', { courseId: courseId });
 }
 
 // Check if a user is a moderator or admin
