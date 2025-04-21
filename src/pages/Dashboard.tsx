@@ -269,7 +269,7 @@ const Dashboard = () => {
                     <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
                   ) : (
                     <AvatarFallback>
-                      <UserIcon className="h-8 w- text-primary" />
+                      <UserIcon className="h-8 w-8 text-primary" />
                     </AvatarFallback>
                   )}
                 </Avatar>
@@ -291,11 +291,11 @@ const Dashboard = () => {
               </Link>
 
               {[
-                { name: 'My Documents', icon: FileText, path: '/documents' },
+                { name: 'My Documents', icon: FileText, path: '/my-documents' },
                 { name: 'Bookmarks', icon: Bookmark, path: '/bookmarks' },
                 { name: 'Recent Activity', icon: Clock, path: '/activity' },
                 { name: 'Settings', icon: Settings, path: '/settings' },
-                { name: 'Upload Document', icon: Upload, path: '/upload' },
+                { name: 'Upload Document', icon: Upload, path: '/upload-document' },
               ].map((item) => (
                 <Link
                   key={item.name}
@@ -324,7 +324,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <main
         className={`transition-all duration-300 ${
-          isSidebarOpen ? 'md:ml-64' : 'md:ml-64'
+          isSidebarOpen ? 'md:ml-64' : 'ml-0 md:ml-64'
         }`}
       >
         {/* Header */}
@@ -333,7 +333,7 @@ const Dashboard = () => {
             {/* Search Form */}
             <form
               onSubmit={handleSearch}
-              className="relative hidden md:block w-96"
+              className="relative w-full max-w-md"
             >
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -362,12 +362,12 @@ const Dashboard = () => {
                     <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
                   ) : (
                     <AvatarFallback>
-                      <UserIcon className="h-8 w- text-primary" />
+                      <UserIcon className="h-8 w-8 text-primary" />
                     </AvatarFallback>
                   )}
                 </Avatar>
               </div>
-              <span className="text-sm font-medium">{userName.split(' ')[0]}</span>
+              <span className="text-sm font-medium">{userName}</span>
             </Link>
 
             </div>
@@ -376,13 +376,13 @@ const Dashboard = () => {
 
         {/* Welcome Section */}
         <div className="p-6">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold mb-2">Welcome back, {userName.split(' ')[0]}!</h1>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold mb-2">Welcome back, {userName}!</h1>
             <p className="text-muted-foreground">Here's an overview of your academic resources and activities.</p>
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
             {quickStats.map((stat) => (
               <motion.div
                 key={stat.title}
@@ -410,19 +410,18 @@ const Dashboard = () => {
           {/* Recent Documents & Upload Button */}
           <div className="flex flex-wrap items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Recent Documents</h2>
-            <Link
-              to="/upload-document"
-              className="inline-flex items-center space-x-2 p-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Upload Document</span>
+            <Link to="/upload-document">
+              <Button className="gap-2">
+                <Plus className="h-4 w-4" />
+                Upload Document
+              </Button>
             </Link>
           </div>
 
           
 
           {/* Document List */}
-          <div className="space-y-4 mb-8">
+          <div className="space-y-4 mb-6">
             {recentDocuments.map((doc, index) => (
               <motion.div
                 key={doc.id}
@@ -448,10 +447,10 @@ const Dashboard = () => {
                           <span
                             className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                               doc.status === 'approved'
-                                ? 'bg-green-100 text-green-800'
+                                ? 'bg-success/20 text-success'
                                 : doc.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
+                                ? 'bg-warning/20 text-warning'
+                                : 'bg-destructive/20 text-destructive'
                             }`}
                           >
                             {doc.status === 'approved' && (
@@ -478,7 +477,7 @@ const Dashboard = () => {
           </div>
 
           {/* Progress & Analytics */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="text-xl font-semibold mb-6">Your Activity</h2>
             <GlassMorphism className="p-6" intensity="light">
               <div className="flex items-center justify-between mb-4">
@@ -536,7 +535,7 @@ const Dashboard = () => {
           </div>
 
           {/* Recommended Documents */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="text-xl font-semibold mb-6">Recommended for You</h2>
             <GlassMorphism className="p-6" intensity="light">
               <p className="text-muted-foreground mb-4">
@@ -576,7 +575,7 @@ const Dashboard = () => {
           </div>
 
           {/* Additional Features/Sections */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="text-xl font-semibold mb-6">Explore More</h2>
             <GlassMorphism className="p-6" intensity="light">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
