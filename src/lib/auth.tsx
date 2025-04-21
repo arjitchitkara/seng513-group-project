@@ -13,6 +13,7 @@ type AuthContextType = {
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
   updateProfile: (data: { fullName?: string; avatar?: string }) => Promise<void>;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -41,6 +42,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     return () => subscription.unsubscribe();
   }, []);
+  const refreshUser = async () => {
+    const { data, error } = await supabase.auth.getUser();
+    if (!error) setUser(data.user);
+    console.log('[Auth] got user metadata:', data.user?.user_metadata)
+  };
 
   const signUp = async (email: string, password: string, fullName: string) => {
     try {
@@ -199,7 +205,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Update auth metadata if fullName provided
       if (data.fullName) {
         const { error: updateError } = await supabase.auth.updateUser({
-          data: { full_name: data.fullName }
+          data: { fullName: data.fullName }
         });
         
         if (updateError) throw updateError;
@@ -207,16 +213,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       // Update profile
       const updates = {
-        ...(data.fullName && { full_name: data.fullName }),
+        ...(data.fullName && { fullName: data.fullName }),
         ...(data.avatar && { avatar: data.avatar }),
-        updated_at: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       
       if (Object.keys(updates).length > 0) {
         const { error } = await supabase
-          .from('profiles')
+          .from('Profile')
           .update(updates)
-          .eq('user_id', user.id);
+          .eq('userId', user.id);
           
         if (error) throw error;
       }
@@ -232,6 +238,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         variant: 'destructive',
       });
     } finally {
+      await refreshUser();
       setLoading(false);
     }
   };
@@ -245,6 +252,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     resetPassword,
     updateProfile,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -7,6 +7,7 @@ import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import ProfileHeaderSkeleton from '@/components/ui/ProfileHeaderSkeleton';
 import {
   getProfile,
   getDocuments,
@@ -34,8 +35,6 @@ const ProfilePage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
   const { user: user } = useAuth();
-
-  const authName = user.user_metadata.full_name || 'User';
 
   const [tab, setTab] = useState<'documents' | 'bookmarks' | 'courses'>('documents');
 
@@ -72,12 +71,15 @@ const ProfilePage: React.FC = () => {
   });
 
   if (loadingProfile || loadingDocs || loadingBms || loadingEnrs) {
-    return <p className="text-center mt-10">Loading…</p>;
+    return <ProfileHeaderSkeleton />;
   }
   if (!profile) {
     return <NotFound />;
   }
   
+  
+  const fullName  = profile.fullName || user.user_metadata?.full_name || 'User';
+  const firstName = fullName.split(' ')[0];
 
   const bookmarks = bms.map((row) => row.document);
   const courses   = enrolls.map((row) => row.course);
@@ -110,9 +112,17 @@ const ProfilePage: React.FC = () => {
             </button>
             <button className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <UserIcon className="h-4 w-4 text-primary" />
+                <Avatar className="w-8 h-8 p-0">
+                  {profile?.profile?.avatar ? (
+                    <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
+                  ) : (
+                    <AvatarFallback>
+                      <UserIcon className="h-8 w- text-primary" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
               </div>
-              <span className="text-sm font-medium">{authName.split(' ')[0]}</span>
+              <span className="text-sm font-medium">{firstName}</span>
             </button>
           </div>
         </div>
@@ -144,8 +154,12 @@ const ProfilePage: React.FC = () => {
                   queryClient.invalidateQueries({ queryKey: ['document', userId] });
                   queryClient.invalidateQueries({ queryKey: ['bookmarks', userId] });
                   queryClient.invalidateQueries({ queryKey: ['enrollments', userId] });
-                } } userId={userId}               />
-              <AnimatedButton hoverLift ripple gradient>Dashboard</AnimatedButton>
+                } } userId={userId}/>
+                <Link to="/dashboard">
+                  <AnimatedButton hoverLift ripple gradient>
+                    Dashboard
+                  </AnimatedButton>
+                </Link>
             </div>
           </div>
         </GlassMorphism>

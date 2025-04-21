@@ -35,23 +35,6 @@ export async function getProfile(userId: string) {
   return null
 }
 
-// Helper to turn a File into a base64 Data URL
-function fileToDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload    = () => resolve(reader.result as string)
-    reader.onerror   = reject
-    reader.readAsDataURL(file)
-  })
-}
-
-// Extract Cloudinary public_id from a full URL
-function getPublicId(url: string): string {
-  const parts = url.split('/')
-  const last   = parts.pop()!
-  return last.split('.')[0]
-}
-
 interface UpdateProfileOpts {
   fullName?: string
   email?: string
@@ -65,7 +48,6 @@ export async function updateProfile(
   userId: string,
   opts: UpdateProfileOpts
 ) {
-  // 1) Auth update: email + password
   if (opts.email || opts.newPassword) {
     const { error: authErr } = await supabase.auth.updateUser({
       email: opts.email,
@@ -74,7 +56,6 @@ export async function updateProfile(
     if (authErr) throw authErr
   }
 
-  // 2) Update your users table: fullName + email
   const userUpdates: any = {}
   if (opts.fullName) userUpdates.fullName = opts.fullName
   if (opts.email)    userUpdates.email    = opts.email
@@ -88,14 +69,12 @@ export async function updateProfile(
     if (userErr) throw userErr
   }
 
-  // 2) Avatar upload (optional) via your Express route
   let avatarUrl: string | null = null
   if (opts.avatarFile) {
-    // Build FormData
+
     const fd = new FormData()
     fd.append('avatar', opts.avatarFile)
 
-    // POST to your server upload handler
     const url = `http://localhost:3001/api/users/${userId}/avatar`
     console.log(`[API] Uploading avatar to ${url}`)
     const res = await fetch(url, {
@@ -104,7 +83,6 @@ export async function updateProfile(
     })
 
     if (!res.ok) {
-      // grab the HTML or JSON error
       const text = await res.text()
       throw new Error(`Avatar upload failed: ${text}`)
     }
@@ -112,16 +90,16 @@ export async function updateProfile(
     avatarUrl = uploaded
   }
 
-  // 3) Now persist bio + avatarUrl into Supabase
+  
   const profileUpdates: any = {}
   if (opts.bio     !== undefined) profileUpdates.bio    = opts.bio
   if (avatarUrl)                  profileUpdates.avatar = avatarUrl
 
   if (Object.keys(profileUpdates).length) {
     const { error: profErr } = await supabase
-      .from('Profile')           // make sure this matches your table name
+      .from('Profile')           
       .update(profileUpdates)
-      .eq('userId', userId)      // snake_case FK column
+      .eq('userId', userId)      
     if (profErr) throw new Error(profErr.message)
   }
 }
@@ -212,7 +190,7 @@ export async function updateDocumentStatus(documentId: string, status: 'PENDING'
 export async function getBookmarks(userId: string, limit = 10, offset = 0) {
   const { data, error } = await supabase
     .from('Bookmark')
-    .select('*, document:Document(*)')
+    .select('*, document:Document(*, course:Course(*))')
     .eq('userId', userId)
     .order('createdAt', { ascending: false })
     .range(offset, offset + limit - 1);

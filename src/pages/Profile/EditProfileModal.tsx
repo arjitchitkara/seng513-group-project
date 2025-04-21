@@ -8,6 +8,7 @@ import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { X } from 'lucide-react';
 import { AnimatedButton } from '@/components/ui/AnimatedButton';
 import {updateProfile} from '../../lib/supabase-helpers';
+import { useAuth } from '@/lib/auth';
 
 interface EditProfileForm {
   fullName: string;
@@ -27,6 +28,7 @@ interface Props {
 const EditProfileModal: React.FC<Props> = ({ userId, onSuccess }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const { refreshUser } = useAuth();
   const [formData, setFormData] = useState<EditProfileForm>({
     fullName: '',
     email: '',
@@ -63,6 +65,9 @@ const EditProfileModal: React.FC<Props> = ({ userId, onSuccess }) => {
         bio: formData.bio,
         avatarFile: formData.avatarFile,
       });
+      console.log('[Modal] before refreshUser')
+      await refreshUser();
+      console.log('[Modal] after refreshUser, user is now:', userId)
       onSuccess();
       setIsOpen(false);
     } catch (error: any) {

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   Bookmark,
   Clock,
@@ -15,6 +16,7 @@ import {
   Settings,
   Upload,
   User,
+  User as UserIcon,
   X,
   Bell,
   CheckCircle,
@@ -26,6 +28,14 @@ import {
   ClipboardList,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  getProfile,
+} from '../lib/supabase-helpers';
+
+const ONE_HOUR = 1000 * 60 * 60;
+const TWENTY_FOUR_HOURS = ONE_HOUR * 24;
+
 
 /* ----------------------------------
    Sample document & stats data
@@ -189,8 +199,28 @@ const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { user, signOut } = useAuth();
+
+  const queryOptions = {
+    staleTime: ONE_HOUR,
+    cacheTime: TWENTY_FOUR_HOURS,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  };
+
+  const userId = user?.id || null;
+
+  const { data: profile,  isLoading: loadingProfile} = useQuery({
+    queryKey: ['profile', userId],
+    queryFn: () => getProfile(userId),
+    ...queryOptions,
+  });
+    if (loadingProfile) {
+      return <p className="text-center mt-10">Loading…</p>;
+    }
+    const fullName  = profile.fullName || user.user_metadata?.full_name || 'User';
+    const userName = fullName.split(' ')[0];
   
-  const userName = user?.user_metadata?.full_name || 'User';
   const userRole = user?.user_metadata?.role || 'USER';
 
   const toggleSidebar = () => {
@@ -234,7 +264,15 @@ const Dashboard = () => {
             {/* User Info */}
             <div className="flex items-center space-x-3 mb-6">
               <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-5 w-5 text-primary" />
+                <Avatar className="w-10 h-10 p-0">
+                  {profile?.profile?.avatar ? (
+                    <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
+                  ) : (
+                    <AvatarFallback>
+                      <UserIcon className="h-8 w- text-primary" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
               </div>
               <div>
                 <p className="font-medium">{userName}</p>
@@ -319,7 +357,15 @@ const Dashboard = () => {
               className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary"
             >
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-4 w-4 text-primary" />
+                <Avatar className="w-8 h-8 p-0">
+                  {profile?.profile?.avatar ? (
+                    <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
+                  ) : (
+                    <AvatarFallback>
+                      <UserIcon className="h-8 w- text-primary" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
               </div>
               <span className="text-sm font-medium">{userName.split(' ')[0]}</span>
             </Link>

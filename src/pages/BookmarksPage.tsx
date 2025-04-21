@@ -3,24 +3,50 @@ import { Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
-import { Search, Bookmark, FileText, CheckCircle, Bell, User } from 'lucide-react';
-import {getBookmarks,} from '../lib/supabase-helpers';
+import { Search, Bookmark, FileText, CheckCircle, Bell, User as UserIcon} from 'lucide-react';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import {getBookmarks, getProfile} from '../lib/supabase-helpers';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { BOOKMARKS, DOCUMENTS, COURSES } from '../components/utils/db/dummy';
+const ONE_HOUR = 1000 * 60 * 60;
+const TWENTY_FOUR_HOURS = ONE_HOUR * 24;
 
 const BookmarksPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const { user } = useAuth();
-  const userName = user?.user_metadata?.full_name || 'User';
+  const userId = user?.id || '';
 
-  /*** Dummy Data Mapping ***/
-  const bookmarks = BOOKMARKS
-    .map(b => DOCUMENTS.find(d => d.id === b.documentId))
-    .filter((d): d is typeof DOCUMENTS[number] => Boolean(d));
+  const queryOptions = {
+    staleTime: ONE_HOUR,
+    cacheTime: TWENTY_FOUR_HOURS,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+  };
+
+  const { data: profile, isLoading: loadingProfile} = useQuery({
+    queryKey: ['profile', userId],
+    queryFn: () => getProfile(userId),
+    ...queryOptions,
+  });
+
+  const { data: bms = [],   isLoading: loadingBms} = useQuery({
+    queryKey: ['bookmarks', userId],
+    queryFn: () => getBookmarks(userId),
+    ...queryOptions,
+  });
+
+  if (loadingProfile || loadingBms) {
+    return <p className="text-center mt-10">Loading…</p>;
+  }
+
+  const bookmarks = bms.map((row) => row.document);
 
   const filtered = bookmarks.filter(b =>
     b.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const userName = profile?.fullName|| 'User';
 
   return (
     <div className="min-h-screen bg-background/20">
@@ -61,7 +87,15 @@ const BookmarksPage: React.FC = () => {
               className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary"
             >
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <User className="h-4 w-4 text-primary" />
+              <Avatar className="w-8 h-8 p-0">
+                  {profile?.profile?.avatar ? (
+                    <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
+                  ) : (
+                    <AvatarFallback>
+                      <UserIcon className="h-8 w- text-primary" />
+                    </AvatarFallback>
+                  )}
+                </Avatar>
               </div>
               <span className="text-sm font-medium">{userName.split(' ')[0]}</span>
             </Link>
@@ -73,7 +107,7 @@ const BookmarksPage: React.FC = () => {
       <div className="p-6 space-y-4">
         {filtered.length > 0 ? (
           filtered.map(doc => {
-            const course = COURSES.find(c => c.id === doc.courseId);
+            const course    = doc.course;
             const isApproved = doc.status.toLowerCase() === 'approved';
 
             return (
