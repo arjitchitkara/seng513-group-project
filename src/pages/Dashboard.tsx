@@ -26,16 +26,18 @@ import {
   Users,
   Lightbulb,
   ClipboardList,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getProfile,
 } from '../lib/supabase-helpers';
+import { getRecentlyViewedDocuments } from '@/lib/api';
 
 const ONE_HOUR = 1000 * 60 * 60;
 const TWENTY_FOUR_HOURS = ONE_HOUR * 24;
-
+const FIVE_MINUTES = 1000 * 60 * 5;
 
 /* ----------------------------------
    Sample document & stats data
@@ -199,10 +201,12 @@ const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { user, signOut } = useAuth();
+  
+  const queryClient = useQueryClient();
 
   const queryOptions = {
     staleTime: ONE_HOUR,
-    cacheTime: TWENTY_FOUR_HOURS,
+    gcTime: TWENTY_FOUR_HOURS,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -210,16 +214,30 @@ const Dashboard = () => {
 
   const userId = user?.id || null;
 
-  const { data: profile,  isLoading: loadingProfile} = useQuery({
+  const { data: profile, isLoading: loadingProfile} = useQuery({
     queryKey: ['profile', userId],
     queryFn: () => getProfile(userId),
     ...queryOptions,
   });
-    if (loadingProfile) {
-      return <p className="text-center mt-10">Loading…</p>;
-    }
-    const fullName  = profile.fullName || user.user_metadata?.full_name || 'User';
-    const userName = fullName.split(' ')[0];
+
+  const { 
+    data: recentDocuments = [], 
+    isLoading: loadingDocuments,
+    error: documentsError,
+    refetch: refetchDocuments,
+    isFetching: isFetchingDocuments 
+  } = useQuery({
+    queryKey: ['recentlyViewedDocuments', userId],
+    queryFn: () => getRecentlyViewedDocuments(userId || ''),
+    staleTime: FIVE_MINUTES,
+    enabled: !!userId,
+  });
+
+  if (loadingProfile) {
+    return <p className="text-center mt-10">Loading…</p>;
+  }
+  const fullName  = profile.fullName || user.user_metadata?.full_name || 'User';
+  const userName = fullName.split(' ')[0];
   
   const userRole = user?.user_metadata?.role || 'USER';
 
@@ -293,7 +311,6 @@ const Dashboard = () => {
               {[
                 { name: 'My Documents', icon: FileText, path: '/my-documents' },
                 { name: 'Bookmarks', icon: Bookmark, path: '/bookmarks' },
-                { name: 'Recent Activity', icon: Clock, path: '/activity' },
                 { name: 'Settings', icon: Settings, path: '/settings' },
                 { name: 'Upload Document', icon: Upload, path: '/upload-document' },
               ].map((item) => (
@@ -405,70 +422,103 @@ const Dashboard = () => {
           {/* Recent Documents & Upload Button */}
           <div className="flex flex-wrap items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Recent Documents</h2>
-            <Link to="/upload-document">
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Upload Document
+            <div className="flex items-center gap-2">
+              {isFetchingDocuments && (
+                <span className="text-xs text-muted-foreground flex items-center">
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                  Refreshing...
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchDocuments()}
+                disabled={isFetchingDocuments}
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Refresh
               </Button>
-            </Link>
+              <Link to="/upload-document">
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Upload Document
+                </Button>
+              </Link>
+            </div>
           </div>
-
-          
 
           {/* Document List */}
           <div className="space-y-4 mb-6">
-            {recentDocuments.map((doc, index) => (
-              <motion.div
-                key={doc.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-              >
-                <GlassMorphism className="p-4" intensity="light">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-3 rounded-md bg-primary/10">
-                        <FileText className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-1">{doc.title}</h3>
-                        <div className="flex flex-wrap items-center text-xs text-muted-foreground">
-                          <span>{doc.course}</span>
-                          <span className="mx-2">•</span>
-                          <span>{doc.date}</span>
-                          <span className="mx-2">•</span>
-                          <span>{doc.pages} pages</span>
-                          <span className="mx-2">•</span>
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              doc.status === 'approved'
-                                ? 'bg-success/20 text-success'
-                                : doc.status === 'pending'
-                                ? 'bg-warning/20 text-warning'
-                                : 'bg-destructive/20 text-destructive'
-                            }`}
-                          >
-                            {doc.status === 'approved' && (
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                            )}
-                            {doc.status.charAt(0).toUpperCase() +
-                              doc.status.slice(1)}
-                          </span>
+            {loadingDocuments ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin h-8 w-8 border-t-2 border-primary rounded-full" />
+              </div>
+            ) : documentsError ? (
+              <GlassMorphism className="p-6 text-center" intensity="light">
+                <p className="text-muted-foreground mb-4">Error loading recent documents.</p>
+                <Button onClick={() => refetchDocuments()}>Try Again</Button>
+              </GlassMorphism>
+            ) : recentDocuments.length === 0 ? (
+              <GlassMorphism className="p-6 text-center" intensity="light">
+                <p className="text-muted-foreground mb-4">No recent documents found.</p>
+                <Link to="/browse-documents">
+                  <Button>Browse Documents</Button>
+                </Link>
+              </GlassMorphism>
+            ) : (
+              recentDocuments.map((doc, index) => (
+                <motion.div
+                  key={doc.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                >
+                  <GlassMorphism className="p-4" intensity="light">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 rounded-md bg-primary/10">
+                          <FileText className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium mb-1">{doc.title}</h3>
+                          <div className="flex flex-wrap items-center text-xs text-muted-foreground">
+                            <span>{doc.course}</span>
+                            <span className="mx-2">•</span>
+                            <span>{doc.date}</span>
+                            <span className="mx-2">•</span>
+                            <span>{doc.pages} pages</span>
+                            <span className="mx-2">•</span>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                doc.status === 'approved'
+                                  ? 'bg-success/20 text-success'
+                                  : doc.status === 'pending'
+                                  ? 'bg-warning/20 text-warning'
+                                  : 'bg-destructive/20 text-destructive'
+                              }`}
+                            >
+                              {doc.status === 'approved' && (
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                              )}
+                              {doc.status.charAt(0).toUpperCase() +
+                                doc.status.slice(1)}
+                            </span>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex space-x-2">
+                        <Button size="sm" variant="outline">
+                        <Link to={`/documents/${doc.id}`}>View</Link>
+                        </Button>
+                        <Button size="sm" variant="ghost">
+                          <Bookmark className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
-                      <Link to={`/documents/${doc.id}`}>View</Link>
-                      </Button>
-                      <Button size="sm" variant="ghost">
-                        <Bookmark className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </GlassMorphism>
-              </motion.div>
-            ))}
+                  </GlassMorphism>
+                </motion.div>
+              ))
+            )}
           </div>
 
           {/* Progress & Analytics */}

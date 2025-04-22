@@ -38,6 +38,46 @@ export const getUserDocuments = async (userId: string) => {
 };
 
 /**
+ * Get recently viewed documents for a user
+ */
+export const getRecentlyViewedDocuments = async (userId: string, limit = 4) => {
+  // Since we don't have a dedicated API for this yet, we'll fetch approved documents
+  // In a real implementation, this would call a dedicated endpoint tracking view history
+  const response = await fetch(`/api/documents?status=APPROVED&limit=${limit}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch recently viewed documents');
+  }
+  
+  const documents = await response.json();
+  
+  // Transform the response to match the expected format in the Dashboard
+  return documents.map(doc => ({
+    id: doc.id,
+    title: doc.title,
+    course: doc.course.title,
+    date: formatRelativeDate(new Date(doc.createdAt)),
+    status: doc.status.toLowerCase(),
+    type: doc.type.toLowerCase(),
+    pages: doc.pages
+  }));
+};
+
+/**
+ * Format a date relative to now (e.g., "2 days ago")
+ */
+const formatRelativeDate = (date: Date) => {
+  const now = new Date();
+  const diffInDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  
+  if (diffInDays === 0) return 'today';
+  if (diffInDays === 1) return 'yesterday';
+  if (diffInDays < 7) return `${diffInDays} days ago`;
+  if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} weeks ago`;
+  return `${Math.floor(diffInDays / 30)} months ago`;
+};
+
+/**
  * Get pending documents for moderation
  */
 export const getPendingDocuments = async () => {
