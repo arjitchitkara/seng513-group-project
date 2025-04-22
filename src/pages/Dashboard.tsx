@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
@@ -32,10 +32,12 @@ import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getProfile,
+  checkBookmark,
 } from '../lib/supabase-helpers';
-import { getRecentlyViewedDocuments, getProxiedDocumentUrl } from '@/lib/api';
+import { getRecentlyViewedDocuments, getProxiedDocumentUrl, toggleBookmark } from '@/lib/api';
 import { DocumentPreview } from '@/components/DocumentPreview';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 
 // Define document type for type safety
 interface Document {
@@ -48,6 +50,7 @@ interface Document {
   pages: number;
   url?: string;
   filePath?: string;
+  bookmarked?: boolean;
 }
 
 const ONE_HOUR = 1000 * 60 * 60;
@@ -248,6 +251,31 @@ const Dashboard = () => {
     staleTime: FIVE_MINUTES,
     enabled: !!userId,
   });
+  
+  // Fetch bookmark status for documents
+  const [bookmarkedDocs, setBookmarkedDocs] = useState<Record<string, boolean>>({});
+  
+  useEffect(() => {
+    const fetchBookmarkStatus = async () => {
+      if (!userId || !recentDocuments.length) return;
+      
+      try {
+        const statuses: Record<string, boolean> = {};
+        
+        // Check bookmark status for each document
+        for (const doc of recentDocuments) {
+          const isBookmarked = await checkBookmark(userId, doc.id);
+          statuses[doc.id] = isBookmarked;
+        }
+        
+        setBookmarkedDocs(statuses);
+      } catch (error) {
+        console.error('Error fetching bookmark statuses:', error);
+      }
+    };
+    
+    fetchBookmarkStatus();
+  }, [userId, recentDocuments]);
 
   if (loadingProfile) {
     return <p className="text-center mt-10">Loading…</p>;
@@ -285,6 +313,44 @@ const Dashboard = () => {
 
   const closeDocumentPreview = () => {
     setPreviewDocument(null);
+  };
+
+  const handleBookmarkToggle = async (document: Document) => {
+    if (!user?.id) {
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        toast.error("You must be logged in to bookmark documents");
+      }, 0);
+      return;
+    }
+    
+    try {
+      const result = await toggleBookmark(user.id, document.id);
+      
+      // Update local state immediately for better UX
+      setBookmarkedDocs(prev => ({
+        ...prev,
+        [document.id]: result.bookmarked
+      }));
+      
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        toast.success(result.bookmarked 
+          ? `Added "${document.title}" to your bookmarks` 
+          : `Removed "${document.title}" from your bookmarks`
+        );
+      }, 0);
+      
+      // Invalidate bookmarks cache to reflect changes
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user.id] });
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        toast.error("Failed to update bookmark");
+      }, 0);
+    }
   };
 
   return (
@@ -550,8 +616,13 @@ const Dashboard = () => {
                         >
                           View
                         </Button>
-                        <Button size="sm" variant="ghost">
-                          <Bookmark className="h-4 w-4" />
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleBookmarkToggle(doc)}
+                          className={bookmarkedDocs[doc.id] ? "text-primary" : ""}
+                        >
+                          <Bookmark className={`h-4 w-4 ${bookmarkedDocs[doc.id] ? "fill-current" : ""}`} />
                         </Button>
                       </div>
                     </div>

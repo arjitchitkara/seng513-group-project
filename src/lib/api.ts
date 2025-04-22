@@ -1,5 +1,7 @@
 // API utility functions for client-side
 
+import { addBookmark, removeBookmark, checkBookmark } from '../lib/supabase-helpers';
+
 /**
  * Upload a document to the server
  * This calls the backend API which handles the R2 storage
@@ -115,4 +117,50 @@ export const updateDocumentStatus = async (documentId: string, status: string) =
   }
   
   return response.json();
+};
+
+/**
+ * Toggle bookmark status (add if not bookmarked, remove if already bookmarked)
+ */
+export const toggleBookmark = async (userId: string, documentId: string): Promise<{ bookmarked: boolean }> => {
+  try {
+    console.log(`Attempting to toggle bookmark for document ${documentId} by user ${userId}`);
+    
+    // First check if the document is already bookmarked
+    const isBookmarked = await checkBookmark(userId, documentId);
+    
+    if (isBookmarked) {
+      // Remove the bookmark
+      await removeBookmark(userId, documentId);
+      console.log(`Bookmark removed for document ${documentId}`);
+      return { bookmarked: false };
+    } else {
+      // Add the bookmark
+      await addBookmark(userId, documentId);
+      console.log(`Bookmark added for document ${documentId}`);
+      return { bookmarked: true };
+    }
+  } catch (error) {
+    console.error('Error toggling bookmark:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if a document is bookmarked by the user
+ */
+export const isDocumentBookmarked = async (userId: string, documentId: string): Promise<boolean> => {
+  try {
+    const response = await fetch(`/api/bookmarks/check?userId=${userId}&documentId=${documentId}`);
+    
+    if (!response.ok) {
+      throw new Error('Failed to check bookmark status');
+    }
+    
+    const data = await response.json();
+    return data.bookmarked;
+  } catch (error) {
+    console.error('Error checking bookmark status:', error);
+    return false;
+  }
 }; 

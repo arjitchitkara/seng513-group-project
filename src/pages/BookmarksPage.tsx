@@ -3,18 +3,38 @@ import { Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
-import { Search, Bookmark, FileText, CheckCircle, Bell, User as UserIcon} from 'lucide-react';
+import { Search, Bookmark, FileText, CheckCircle, Bell, User as UserIcon, X} from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import {getBookmarks, getProfile} from '../lib/supabase-helpers';
+import {getBookmarks, getProfile, removeBookmark} from '../lib/supabase-helpers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { DocumentPreview } from '@/components/DocumentPreview';
+import { getProxiedDocumentUrl } from '@/lib/api';
+import { toast } from 'sonner';
 
 const ONE_HOUR = 1000 * 60 * 60;
 const TWENTY_FOUR_HOURS = ONE_HOUR * 24;
 
+// Document interface
+interface Document {
+  id: string;
+  title: string;
+  course: {
+    title: string;
+  };
+  date?: string;
+  pages: number;
+  status: string;
+  filePath: string;
+  url?: string;
+}
+
 const BookmarksPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const { user } = useAuth();
   const userId = user?.id || '';
+  const queryClient = useQueryClient();
 
   const queryOptions = {
     staleTime: ONE_HOUR,
@@ -30,7 +50,7 @@ const BookmarksPage: React.FC = () => {
     ...queryOptions,
   });
 
-  const { data: bms = [],   isLoading: loadingBms} = useQuery({
+  const { data: bms = [], isLoading: loadingBms} = useQuery({
     queryKey: ['bookmarks', userId],
     queryFn: () => getBookmarks(userId),
     ...queryOptions,
@@ -47,6 +67,45 @@ const BookmarksPage: React.FC = () => {
   );
 
   const userName = profile?.fullName|| 'User';
+  
+  const openDocumentPreview = async (document: Document) => {
+    try {
+      // Create a proxied URL for the document
+      const url = getProxiedDocumentUrl(document.id);
+      
+      setPreviewDocument({
+        ...document,
+        url
+      });
+    } catch (error) {
+      console.error('Error preparing document preview:', error);
+      setPreviewDocument(document);
+    }
+  };
+  
+  const closeDocumentPreview = () => {
+    setPreviewDocument(null);
+  };
+  
+  const handleRemoveBookmark = async (docId: string) => {
+    try {
+      await removeBookmark(userId, docId);
+      
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        toast.success("Removed from bookmarks");
+      }, 0);
+      
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', userId] });
+    } catch (error) {
+      console.error('Error removing bookmark:', error);
+      
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        toast.error("Failed to remove bookmark");
+      }, 0);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background/20">
@@ -87,7 +146,7 @@ const BookmarksPage: React.FC = () => {
               className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary"
             >
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-              <Avatar className="w-8 h-8 p-0">
+                <Avatar className="w-8 h-8 p-0">
                   {profile?.profile?.avatar ? (
                     <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
                   ) : (
@@ -107,7 +166,7 @@ const BookmarksPage: React.FC = () => {
       <div className="p-6 space-y-4">
         {filtered.length > 0 ? (
           filtered.map(doc => {
-            const course    = doc.course;
+            const course = doc.course;
             const isApproved = doc.status.toLowerCase() === 'approved';
 
             return (
@@ -142,10 +201,19 @@ const BookmarksPage: React.FC = () => {
                     </div>
                   </div>
                   <div className="flex space-x-2">
-                    <Button variant="outline" size="sm" className="flex items-center">
-                      <Link to={`/documents/${doc.id}`}>View</Link>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => openDocumentPreview(doc)}
+                    >
+                      View
                     </Button>
-                    <Button variant="ghost" size="sm">
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      onClick={() => handleRemoveBookmark(doc.id)}
+                      className="text-primary"
+                    >
                       <Bookmark className="h-4 w-4" />
                     </Button>
                   </div>
@@ -157,6 +225,29 @@ const BookmarksPage: React.FC = () => {
           <p className="text-center text-muted-foreground">No bookmarks found.</p>
         )}
       </div>
+      
+      {/* Document Preview Dialog */}
+      <Dialog open={previewDocument !== null} onOpenChange={(open) => !open && closeDocumentPreview()}>
+        <DialogContent className="max-w-4xl w-[90vw] h-[80vh] p-0">
+          {previewDocument && (
+            <div className="h-full flex flex-col">
+              <div className="p-4 border-b flex items-center justify-between">
+                <h2 className="font-medium">{previewDocument.title}</h2>
+                <Button variant="ghost" size="sm" onClick={closeDocumentPreview}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <DocumentPreview 
+                  url={previewDocument.url || ''}
+                  fileName={previewDocument.title}
+                  isVerified={previewDocument.status.toLowerCase() === 'approved'}
+                />
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
