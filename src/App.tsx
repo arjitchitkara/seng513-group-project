@@ -366,9 +366,7 @@ const App = () => (
                   variants={pageVariants}
                   className="min-h-screen"
                 >
-                  <ProtectedRoute>
-                    <AcademicIntegrity />
-                  </ProtectedRoute>
+                  <AcademicIntegrity />
                 </motion.div>
               } 
             />
@@ -383,9 +381,7 @@ const App = () => (
                   variants={pageVariants}
                   className="min-h-screen"
                 >
-                  <ProtectedRoute>
-                    <About />
-                  </ProtectedRoute>
+                  <About />
                 </motion.div>
               } 
             />
