@@ -1,0 +1,23 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Copy package files and install dependencies
+COPY package.json package-lock.json ./
+RUN npm ci
+
+# Copy project files (excluding frontend build artifacts)
+COPY .env.example ./.env.example
+COPY tsconfig.json ./
+COPY prisma ./prisma/
+COPY src/api ./src/api/
+COPY backend ./backend/
+
+# Generate Prisma client - without requiring DATABASE_URL since we'll pass at runtime
+RUN npm run db:generate
+
+# Expose API port
+EXPOSE 3001
+
+# Command to run the backend
+CMD ["npm", "run", "api"] 
