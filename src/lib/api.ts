@@ -91,6 +91,14 @@ export const getPendingDocuments = async () => {
 };
 
 /**
+ * Get a proxied URL for a document to ensure proper content rendering
+ * This uses the r2-proxy route which handles content type headers correctly
+ */
+export const getProxiedDocumentUrl = (documentId: string): string => {
+  return `/api/proxy/r2/${documentId}`;
+};
+
+/**
  * Update document status
  */
 export const updateDocumentStatus = async (documentId: string, status: string) => {

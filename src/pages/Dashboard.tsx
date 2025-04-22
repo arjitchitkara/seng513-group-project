@@ -33,7 +33,22 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getProfile,
 } from '../lib/supabase-helpers';
-import { getRecentlyViewedDocuments } from '@/lib/api';
+import { getRecentlyViewedDocuments, getProxiedDocumentUrl } from '@/lib/api';
+import { DocumentPreview } from '@/components/DocumentPreview';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+
+// Define document type for type safety
+interface Document {
+  id: string;
+  title: string;
+  course: string;
+  date: string;
+  status: string;
+  type: string;
+  pages: number;
+  url?: string;
+  filePath?: string;
+}
 
 const ONE_HOUR = 1000 * 60 * 60;
 const TWENTY_FOUR_HOURS = ONE_HOUR * 24;
@@ -200,6 +215,7 @@ const additionalSections = [
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const { user, signOut } = useAuth();
   
   const queryClient = useQueryClient();
@@ -249,6 +265,26 @@ const Dashboard = () => {
     e.preventDefault();
     // Implement search functionality
     console.log('Searching for:', searchQuery);
+  };
+
+  const openDocumentPreview = async (document: Document) => {
+    try {
+      // Create a proxied URL for the document
+      // This approach ensures content is served through our API with proper headers
+      const url = getProxiedDocumentUrl(document.id);
+      
+      setPreviewDocument({
+        ...document,
+        url
+      });
+    } catch (error) {
+      console.error('Error preparing document preview:', error);
+      setPreviewDocument(document);
+    }
+  };
+
+  const closeDocumentPreview = () => {
+    setPreviewDocument(null);
   };
 
   return (
@@ -507,8 +543,12 @@ const Dashboard = () => {
                         </div>
                       </div>
                       <div className="flex space-x-2">
-                        <Button size="sm" variant="outline">
-                        <Link to={`/documents/${doc.id}`}>View</Link>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => openDocumentPreview(doc)}
+                        >
+                          View
                         </Button>
                         <Button size="sm" variant="ghost">
                           <Bookmark className="h-4 w-4" />
@@ -520,6 +560,29 @@ const Dashboard = () => {
               ))
             )}
           </div>
+
+          {/* Document Preview Dialog */}
+          <Dialog open={previewDocument !== null} onOpenChange={(open) => !open && closeDocumentPreview()}>
+            <DialogContent className="max-w-4xl w-[90vw] h-[80vh] p-0">
+              {previewDocument && (
+                <div className="h-full flex flex-col">
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <h2 className="font-medium">{previewDocument.title}</h2>
+                    <Button variant="ghost" size="sm" onClick={closeDocumentPreview}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <DocumentPreview 
+                      url={previewDocument.url || ''}
+                      fileName={previewDocument.title}
+                      isVerified={previewDocument.status === 'approved'}
+                    />
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Progress & Analytics */}
           <div className="mb-6">
