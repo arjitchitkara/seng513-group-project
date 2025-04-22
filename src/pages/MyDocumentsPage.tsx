@@ -1,11 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { DocumentPreview } from '@/components/DocumentPreview';
 import { Button } from '@/components/ui/button';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
-import { PlusIcon } from 'lucide-react';
+import { PlusIcon, RefreshCw, Clock } from 'lucide-react';
 import { ApprovalStatus } from '@prisma/client';
 import { useNavigate } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { format, formatDistanceToNow } from 'date-fns';
 
 interface Document {
   id: string;
@@ -19,56 +21,95 @@ interface Document {
   };
 }
 
+// Caching constants
+const ONE_HOUR = 1000 * 60 * 60;
+const FIVE_MINUTES = 1000 * 60 * 5;
+
+const fetchUserDocuments = async (userId: string | undefined): Promise<Document[]> => {
+  if (!userId) return [];
+  
+  const response = await fetch(`/api/documents?userId=${userId}`);
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch documents');
+  }
+  
+  return response.json();
+};
+
 const MyDocumentsPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [documents, setDocuments] = useState<Document[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryClient = useQueryClient();
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
+  const [lastRefreshed, setLastRefreshed] = useState<Date>(new Date());
 
-  const fetchUserDocuments = async () => {
-    if (!user) return;
-    
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/documents?userId=${user.id}`);
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch documents');
-      }
-      
-      const data = await response.json();
-      setDocuments(data);
-    } catch (error) {
-      console.error('Error fetching documents:', error);
-      setError('Failed to load documents');
-    } finally {
-      setLoading(false);
-    }
+  const { 
+    data: documents = [], 
+    isLoading, 
+    error, 
+    refetch,
+    isFetching,
+    dataUpdatedAt
+  } = useQuery<Document[]>({
+    queryKey: ['userDocuments', user?.id],
+    queryFn: () => fetchUserDocuments(user?.id),
+    staleTime: FIVE_MINUTES,
+    gcTime: ONE_HOUR,
+    enabled: !!user?.id,
+  });
+
+  const handleRefresh = async () => {
+    await refetch();
+    setLastRefreshed(new Date());
   };
 
-  useEffect(() => {
-    fetchUserDocuments();
-  }, [user]);
+  const formatLastUpdated = () => {
+    const updateTime = new Date(dataUpdatedAt);
+    // If within last hour, show "X minutes ago"
+    if (Date.now() - updateTime.getTime() < ONE_HOUR) {
+      return `${formatDistanceToNow(updateTime, { addSuffix: true })}`;
+    }
+    // Otherwise show full time
+    return `${format(updateTime, 'h:mm a')}`;
+  };
 
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold">My Documents</h1>
-        <Button onClick={() => navigate('/upload-document')}>
-          <PlusIcon className="h-4 w-4 mr-2" />
-          Upload Document
-        </Button>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center text-xs text-muted-foreground">
+            <Clock className="h-3 w-3 mr-1" />
+            <span>Last updated: {dataUpdatedAt ? formatLastUpdated() : 'Never'}</span>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-3 w-3 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button onClick={() => navigate('/upload-document')}>
+            <PlusIcon className="h-4 w-4 mr-2" />
+            Upload Document
+          </Button>
+        </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex justify-center py-8">
           <div className="animate-spin h-8 w-8 border-t-2 border-primary rounded-full" />
         </div>
       ) : error ? (
         <div className="text-center py-8 text-destructive">
-          <p>{error}</p>
+          <p>{(error as Error).message || 'Failed to load documents'}</p>
+          <Button variant="outline" className="mt-4" onClick={handleRefresh}>
+            Try Again
+          </Button>
         </div>
       ) : documents.length === 0 ? (
         <GlassMorphism className="p-8 text-center" intensity="light">

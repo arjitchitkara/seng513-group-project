@@ -50,7 +50,15 @@ const UploadDocumentPage = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Upload Document</h1>
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold">Upload Document</h1>
+        <button 
+          onClick={() => navigate("/dashboard")}
+          className="flex items-center px-4 py-2 rounded-md bg-secondary hover:bg-secondary/80 transition-colors"
+        >
+          Back to Dashboard
+        </button>
+      </div>
       
       <GlassMorphism className="p-6 mb-6" intensity="light">
         <div className="mb-6">

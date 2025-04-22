@@ -199,10 +199,32 @@ export async function getBookmarks(userId: string, limit = 10, offset = 0) {
   return data;
 }
 
+export async function checkBookmark(userId: string, documentId: string): Promise<boolean> {
+  const { count, error } = await supabase
+    .from('Bookmark')
+    .select('*', { count: 'exact', head: true })
+    .eq('userId', userId)
+    .eq('documentId', documentId);
+  
+  if (error) {
+    console.error('Error checking bookmark:', error);
+    throw error;
+  }
+  
+  return count ? count > 0 : false;
+}
+
 export async function addBookmark(userId: string, documentId: string) {
+  // Generate a UUID for the bookmark
+  const bookmarkId = crypto.randomUUID();
+  
   const { data, error } = await supabase
     .from('Bookmark')
-    .insert([{ user_id: userId, document_id: documentId }])
+    .insert([{ 
+      id: bookmarkId,
+      userId, 
+      documentId 
+    }])
     .select()
     .single();
   
@@ -214,7 +236,8 @@ export async function removeBookmark(userId: string, documentId: string) {
   const { error } = await supabase
     .from('Bookmark')
     .delete()
-    .match({ userId: userId, documentId: documentId });
+    .eq('userId', userId)
+    .eq('documentId', documentId);
   
   if (error) throw error;
 }

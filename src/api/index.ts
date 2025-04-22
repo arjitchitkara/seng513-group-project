@@ -38,7 +38,7 @@ import objectProxyRouter from '../../object-proxy';
 import { initDatabase } from './db';
 import { uploadDocument } from '../../backend/r2/documentService';
 import { convertAndCompressFile } from '../../backend/conversion/fileConverter';
-
+import bookmarksRouter from './routes/bookmarks';
 
 interface MulterRequest extends Request {
   file: Express.Multer.File;
@@ -68,6 +68,7 @@ app.use(express.json());
 app.use('/api/users', usersRouter);
 app.use('/api/documents', documentsRouter);
 app.use('/api/courses', coursesRouter);
+app.use('/api/bookmarks', bookmarksRouter);
 app.use('/api/proxy', objectProxyRouter);
 
 // File upload endpoint

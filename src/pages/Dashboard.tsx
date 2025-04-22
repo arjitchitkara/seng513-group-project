@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
@@ -26,16 +26,36 @@ import {
   Users,
   Lightbulb,
   ClipboardList,
+  RefreshCw,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   getProfile,
+  checkBookmark,
 } from '../lib/supabase-helpers';
+import { getRecentlyViewedDocuments, getProxiedDocumentUrl, toggleBookmark } from '@/lib/api';
+import { DocumentPreview } from '@/components/DocumentPreview';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+
+// Define document type for type safety
+interface Document {
+  id: string;
+  title: string;
+  course: string;
+  date: string;
+  status: string;
+  type: string;
+  pages: number;
+  url?: string;
+  filePath?: string;
+  bookmarked?: boolean;
+}
 
 const ONE_HOUR = 1000 * 60 * 60;
 const TWENTY_FOUR_HOURS = ONE_HOUR * 24;
-
+const FIVE_MINUTES = 1000 * 60 * 5;
 
 /* ----------------------------------
    Sample document & stats data
@@ -198,11 +218,14 @@ const additionalSections = [
 const Dashboard = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [previewDocument, setPreviewDocument] = useState<Document | null>(null);
   const { user, signOut } = useAuth();
+  
+  const queryClient = useQueryClient();
 
   const queryOptions = {
     staleTime: ONE_HOUR,
-    cacheTime: TWENTY_FOUR_HOURS,
+    gcTime: TWENTY_FOUR_HOURS,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
@@ -210,16 +233,55 @@ const Dashboard = () => {
 
   const userId = user?.id || null;
 
-  const { data: profile,  isLoading: loadingProfile} = useQuery({
+  const { data: profile, isLoading: loadingProfile} = useQuery({
     queryKey: ['profile', userId],
     queryFn: () => getProfile(userId),
     ...queryOptions,
   });
-    if (loadingProfile) {
-      return <p className="text-center mt-10">Loading…</p>;
-    }
-    const fullName  = profile.fullName || user.user_metadata?.full_name || 'User';
-    const userName = fullName.split(' ')[0];
+
+  const { 
+    data: recentDocuments = [], 
+    isLoading: loadingDocuments,
+    error: documentsError,
+    refetch: refetchDocuments,
+    isFetching: isFetchingDocuments 
+  } = useQuery({
+    queryKey: ['recentlyViewedDocuments', userId],
+    queryFn: () => getRecentlyViewedDocuments(userId || ''),
+    staleTime: FIVE_MINUTES,
+    enabled: !!userId,
+  });
+  
+  // Fetch bookmark status for documents
+  const [bookmarkedDocs, setBookmarkedDocs] = useState<Record<string, boolean>>({});
+  
+  useEffect(() => {
+    const fetchBookmarkStatus = async () => {
+      if (!userId || !recentDocuments.length) return;
+      
+      try {
+        const statuses: Record<string, boolean> = {};
+        
+        // Check bookmark status for each document
+        for (const doc of recentDocuments) {
+          const isBookmarked = await checkBookmark(userId, doc.id);
+          statuses[doc.id] = isBookmarked;
+        }
+        
+        setBookmarkedDocs(statuses);
+      } catch (error) {
+        console.error('Error fetching bookmark statuses:', error);
+      }
+    };
+    
+    fetchBookmarkStatus();
+  }, [userId, recentDocuments]);
+
+  if (loadingProfile) {
+    return <p className="text-center mt-10">Loading…</p>;
+  }
+  const fullName  = profile.fullName || user.user_metadata?.full_name || 'User';
+  const userName = fullName.split(' ')[0];
   
   const userRole = user?.user_metadata?.role || 'USER';
 
@@ -231,6 +293,64 @@ const Dashboard = () => {
     e.preventDefault();
     // Implement search functionality
     console.log('Searching for:', searchQuery);
+  };
+
+  const openDocumentPreview = async (document: Document) => {
+    try {
+      // Create a proxied URL for the document
+      // This approach ensures content is served through our API with proper headers
+      const url = getProxiedDocumentUrl(document.id);
+      
+      setPreviewDocument({
+        ...document,
+        url
+      });
+    } catch (error) {
+      console.error('Error preparing document preview:', error);
+      setPreviewDocument(document);
+    }
+  };
+
+  const closeDocumentPreview = () => {
+    setPreviewDocument(null);
+  };
+
+  const handleBookmarkToggle = async (document: Document) => {
+    if (!user?.id) {
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        toast.error("You must be logged in to bookmark documents");
+      }, 0);
+      return;
+    }
+    
+    try {
+      const result = await toggleBookmark(user.id, document.id);
+      
+      // Update local state immediately for better UX
+      setBookmarkedDocs(prev => ({
+        ...prev,
+        [document.id]: result.bookmarked
+      }));
+      
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        toast.success(result.bookmarked 
+          ? `Added "${document.title}" to your bookmarks` 
+          : `Removed "${document.title}" from your bookmarks`
+        );
+      }, 0);
+      
+      // Invalidate bookmarks cache to reflect changes
+      queryClient.invalidateQueries({ queryKey: ['bookmarks', user.id] });
+    } catch (error) {
+      console.error('Error toggling bookmark:', error);
+      
+      // Use setTimeout to avoid state updates during render
+      setTimeout(() => {
+        toast.error("Failed to update bookmark");
+      }, 0);
+    }
   };
 
   return (
@@ -269,7 +389,7 @@ const Dashboard = () => {
                     <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
                   ) : (
                     <AvatarFallback>
-                      <UserIcon className="h-8 w- text-primary" />
+                      <UserIcon className="h-8 w-8 text-primary" />
                     </AvatarFallback>
                   )}
                 </Avatar>
@@ -291,11 +411,10 @@ const Dashboard = () => {
               </Link>
 
               {[
-                { name: 'My Documents', icon: FileText, path: '/documents' },
+                { name: 'My Documents', icon: FileText, path: '/my-documents' },
                 { name: 'Bookmarks', icon: Bookmark, path: '/bookmarks' },
-                { name: 'Recent Activity', icon: Clock, path: '/activity' },
                 { name: 'Settings', icon: Settings, path: '/settings' },
-                { name: 'Upload Document', icon: Upload, path: '/upload' },
+                { name: 'Upload Document', icon: Upload, path: '/upload-document' },
               ].map((item) => (
                 <Link
                   key={item.name}
@@ -324,7 +443,7 @@ const Dashboard = () => {
       {/* Main Content */}
       <main
         className={`transition-all duration-300 ${
-          isSidebarOpen ? 'md:ml-64' : 'md:ml-64'
+          isSidebarOpen ? 'md:ml-64' : 'ml-0 md:ml-64'
         }`}
       >
         {/* Header */}
@@ -333,7 +452,7 @@ const Dashboard = () => {
             {/* Search Form */}
             <form
               onSubmit={handleSearch}
-              className="relative hidden md:block w-96"
+              className="relative w-full max-w-md"
             >
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <input
@@ -347,11 +466,6 @@ const Dashboard = () => {
 
             <div className="flex items-center space-x-4">
 
-              <Link to="/notifications" className="p-2 rounded-full bg-secondary/70 hover:bg-secondary relative">
-                <Bell className="h-5 w-5 text-foreground/70" />
-                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full">3</span>
-              </Link>
-
               <Link
               to={`/profile/${user.id}`}
               className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary"
@@ -362,12 +476,12 @@ const Dashboard = () => {
                     <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
                   ) : (
                     <AvatarFallback>
-                      <UserIcon className="h-8 w- text-primary" />
+                      <UserIcon className="h-8 w-8 text-primary" />
                     </AvatarFallback>
                   )}
                 </Avatar>
               </div>
-              <span className="text-sm font-medium">{userName.split(' ')[0]}</span>
+              <span className="text-sm font-medium">{userName}</span>
             </Link>
 
             </div>
@@ -376,13 +490,13 @@ const Dashboard = () => {
 
         {/* Welcome Section */}
         <div className="p-6">
-          <div className="mb-8">
-            <h1 className="text-2xl font-bold mb-2">Welcome back, {userName.split(' ')[0]}!</h1>
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold mb-2">Welcome back, {userName}!</h1>
             <p className="text-muted-foreground">Here's an overview of your academic resources and activities.</p>
           </div>
 
           {/* Quick Stats */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
             {quickStats.map((stat) => (
               <motion.div
                 key={stat.title}
@@ -410,75 +524,139 @@ const Dashboard = () => {
           {/* Recent Documents & Upload Button */}
           <div className="flex flex-wrap items-center justify-between mb-6">
             <h2 className="text-xl font-semibold">Recent Documents</h2>
-            <Link
-              to="/upload-document"
-              className="inline-flex items-center space-x-2 p-2 bg-primary text-white rounded hover:bg-primary/90 transition-colors"
-            >
-              <Plus className="h-4 w-4" />
-              <span>Upload Document</span>
-            </Link>
+            <div className="flex items-center gap-2">
+              {isFetchingDocuments && (
+                <span className="text-xs text-muted-foreground flex items-center">
+                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                  Refreshing...
+                </span>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetchDocuments()}
+                disabled={isFetchingDocuments}
+              >
+                <RefreshCw className="h-3 w-3 mr-1" />
+                Refresh
+              </Button>
+              <Link to="/upload-document">
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Upload Document
+                </Button>
+              </Link>
+            </div>
           </div>
-
-          
 
           {/* Document List */}
-          <div className="space-y-4 mb-8">
-            {recentDocuments.map((doc, index) => (
-              <motion.div
-                key={doc.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: index * 0.1 }}
-              >
-                <GlassMorphism className="p-4" intensity="light">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="p-3 rounded-md bg-primary/10">
-                        <FileText className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-1">{doc.title}</h3>
-                        <div className="flex flex-wrap items-center text-xs text-muted-foreground">
-                          <span>{doc.course}</span>
-                          <span className="mx-2">•</span>
-                          <span>{doc.date}</span>
-                          <span className="mx-2">•</span>
-                          <span>{doc.pages} pages</span>
-                          <span className="mx-2">•</span>
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              doc.status === 'approved'
-                                ? 'bg-green-100 text-green-800'
-                                : doc.status === 'pending'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : 'bg-red-100 text-red-800'
-                            }`}
-                          >
-                            {doc.status === 'approved' && (
-                              <CheckCircle className="h-3 w-3 mr-1" />
-                            )}
-                            {doc.status.charAt(0).toUpperCase() +
-                              doc.status.slice(1)}
-                          </span>
+          <div className="space-y-4 mb-6">
+            {loadingDocuments ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin h-8 w-8 border-t-2 border-primary rounded-full" />
+              </div>
+            ) : documentsError ? (
+              <GlassMorphism className="p-6 text-center" intensity="light">
+                <p className="text-muted-foreground mb-4">Error loading recent documents.</p>
+                <Button onClick={() => refetchDocuments()}>Try Again</Button>
+              </GlassMorphism>
+            ) : recentDocuments.length === 0 ? (
+              <GlassMorphism className="p-6 text-center" intensity="light">
+                <p className="text-muted-foreground mb-4">No recent documents found.</p>
+                <Link to="/browse-documents">
+                  <Button>Browse Documents</Button>
+                </Link>
+              </GlassMorphism>
+            ) : (
+              recentDocuments.map((doc, index) => (
+                <motion.div
+                  key={doc.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                >
+                  <GlassMorphism className="p-4" intensity="light">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className="p-3 rounded-md bg-primary/10">
+                          <FileText className="h-6 w-6 text-primary" />
+                        </div>
+                        <div>
+                          <h3 className="font-medium mb-1">{doc.title}</h3>
+                          <div className="flex flex-wrap items-center text-xs text-muted-foreground">
+                            <span>{doc.course}</span>
+                            <span className="mx-2">•</span>
+                            <span>{doc.date}</span>
+                            <span className="mx-2">•</span>
+                            <span>{doc.pages} pages</span>
+                            <span className="mx-2">•</span>
+                            <span
+                              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                doc.status === 'approved'
+                                  ? 'bg-success/20 text-success'
+                                  : doc.status === 'pending'
+                                  ? 'bg-warning/20 text-warning'
+                                  : 'bg-destructive/20 text-destructive'
+                              }`}
+                            >
+                              {doc.status === 'approved' && (
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                              )}
+                              {doc.status.charAt(0).toUpperCase() +
+                                doc.status.slice(1)}
+                            </span>
+                          </div>
                         </div>
                       </div>
+                      <div className="flex space-x-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => openDocumentPreview(doc)}
+                        >
+                          View
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => handleBookmarkToggle(doc)}
+                          className={bookmarkedDocs[doc.id] ? "text-primary" : ""}
+                        >
+                          <Bookmark className={`h-4 w-4 ${bookmarkedDocs[doc.id] ? "fill-current" : ""}`} />
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button size="sm" variant="outline">
-                      <Link to={`/documents/${doc.id}`}>View</Link>
-                      </Button>
-                      <Button size="sm" variant="ghost">
-                        <Bookmark className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </GlassMorphism>
-              </motion.div>
-            ))}
+                  </GlassMorphism>
+                </motion.div>
+              ))
+            )}
           </div>
 
+          {/* Document Preview Dialog */}
+          <Dialog open={previewDocument !== null} onOpenChange={(open) => !open && closeDocumentPreview()}>
+            <DialogContent className="max-w-4xl w-[90vw] h-[80vh] p-0">
+              {previewDocument && (
+                <div className="h-full flex flex-col">
+                  <div className="p-4 border-b flex items-center justify-between">
+                    <DialogTitle className="font-medium">{previewDocument.title}</DialogTitle>
+                    <Button variant="ghost" size="sm" onClick={closeDocumentPreview}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div className="flex-1 overflow-hidden">
+                    <DocumentPreview 
+                      url={previewDocument.url || ''}
+                      fileName={previewDocument.title}
+                      isVerified={previewDocument.status === 'approved'}
+                    />
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
+
           {/* Progress & Analytics */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="text-xl font-semibold mb-6">Your Activity</h2>
             <GlassMorphism className="p-6" intensity="light">
               <div className="flex items-center justify-between mb-4">
@@ -536,7 +714,7 @@ const Dashboard = () => {
           </div>
 
           {/* Recommended Documents */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="text-xl font-semibold mb-6">Recommended for You</h2>
             <GlassMorphism className="p-6" intensity="light">
               <p className="text-muted-foreground mb-4">
@@ -576,7 +754,7 @@ const Dashboard = () => {
           </div>
 
           {/* Additional Features/Sections */}
-          <div className="mb-8">
+          <div className="mb-6">
             <h2 className="text-xl font-semibold mb-6">Explore More</h2>
             <GlassMorphism className="p-6" intensity="light">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
