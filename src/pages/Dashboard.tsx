@@ -36,7 +36,7 @@ import {
 } from '../lib/supabase-helpers';
 import { getRecentlyViewedDocuments, getProxiedDocumentUrl, toggleBookmark } from '@/lib/api';
 import { DocumentPreview } from '@/components/DocumentPreview';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 
 // Define document type for type safety
@@ -638,7 +638,7 @@ const Dashboard = () => {
               {previewDocument && (
                 <div className="h-full flex flex-col">
                   <div className="p-4 border-b flex items-center justify-between">
-                    <h2 className="font-medium">{previewDocument.title}</h2>
+                    <DialogTitle className="font-medium">{previewDocument.title}</DialogTitle>
                     <Button variant="ghost" size="sm" onClick={closeDocumentPreview}>
                       <X className="h-4 w-4" />
                     </Button>

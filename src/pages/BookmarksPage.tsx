@@ -7,7 +7,7 @@ import { Search, Bookmark, FileText, CheckCircle, Bell, User as UserIcon, X} fro
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {getBookmarks, getProfile, removeBookmark} from '../lib/supabase-helpers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { DocumentPreview } from '@/components/DocumentPreview';
 import { getProxiedDocumentUrl } from '@/lib/api';
 import { toast } from 'sonner';
@@ -232,7 +232,7 @@ const BookmarksPage: React.FC = () => {
           {previewDocument && (
             <div className="h-full flex flex-col">
               <div className="p-4 border-b flex items-center justify-between">
-                <h2 className="font-medium">{previewDocument.title}</h2>
+                <DialogTitle className="font-medium">{previewDocument.title}</DialogTitle>
                 <Button variant="ghost" size="sm" onClick={closeDocumentPreview}>
                   <X className="h-4 w-4" />
                 </Button>
