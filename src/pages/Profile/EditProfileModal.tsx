@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { X } from 'lucide-react';
-import { AnimatedButton } from '@/components/ui/AnimatedButton';
+import { Button } from '@/components/ui/button';
 import {updateProfile} from '../../lib/supabase-helpers';
 import { useAuth } from '@/lib/auth';
 
@@ -22,10 +22,11 @@ interface EditProfileForm {
 interface Props {
   userId: string;
   onSuccess: () => void;
+  buttonText?: string;
 }
 
 
-const EditProfileModal: React.FC<Props> = ({ userId, onSuccess }) => {
+const EditProfileModal: React.FC<Props> = ({ userId, onSuccess, buttonText = "Edit Profile" }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const { refreshUser } = useAuth();
@@ -116,7 +117,7 @@ const EditProfileModal: React.FC<Props> = ({ userId, onSuccess }) => {
               </div>
             </div>
             <div className="flex justify-end">
-              <AnimatedButton hoverScale gradient type="submit" disabled={loading} onClick={handleSave}> {loading ? 'Saving…' : 'Save Changes'} </AnimatedButton>
+              <Button variant="outline" size="sm" disabled={loading} onClick={handleSave}> {loading ? 'Saving…' : 'Save Changes'} </Button>
             </div>
           </form>
         </GlassMorphism>
@@ -126,9 +127,9 @@ const EditProfileModal: React.FC<Props> = ({ userId, onSuccess }) => {
 
   return (
     <>
-      <AnimatedButton hoverLift ripple gradient className="!text-sm" onClick={() => setIsOpen(true)}>
-        Edit Profile
-      </AnimatedButton>
+      <Button variant="outline" size="sm" onClick={() => setIsOpen(true)}>
+        {buttonText}
+      </Button>
 
       {isOpen && createPortal(modalContent, document.body)}
     </>

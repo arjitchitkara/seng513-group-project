@@ -169,6 +169,23 @@ const App = () => (
               } 
             />
             <Route 
+              path="/moderator-dashboard/settings"
+              element={
+                <motion.div
+                  key="moderator-settings"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute requiredRole="MODERATOR">
+                    <SettingsPage />
+                  </ProtectedRoute>
+                </motion.div>
+              }
+            />
+            <Route 
               path="/admin-dashboard" 
               element={
                 <motion.div
@@ -366,9 +383,7 @@ const App = () => (
                   variants={pageVariants}
                   className="min-h-screen"
                 >
-                  <ProtectedRoute>
-                    <AcademicIntegrity />
-                  </ProtectedRoute>
+                  <AcademicIntegrity />
                 </motion.div>
               } 
             />
@@ -383,9 +398,7 @@ const App = () => (
                   variants={pageVariants}
                   className="min-h-screen"
                 >
-                  <ProtectedRoute>
-                    <About />
-                  </ProtectedRoute>
+                  <About />
                 </motion.div>
               } 
             />
