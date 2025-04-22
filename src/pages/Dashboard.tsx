@@ -40,6 +40,7 @@ import { getRecentlyViewedDocuments, getProxiedDocumentUrl, toggleBookmark } fro
 import { DocumentPreview } from '@/components/DocumentPreview';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { toast } from 'sonner';
+import EditProfileModal from './Profile/EditProfileModal';
 
 // Define document type for type safety
 interface Document {
@@ -662,11 +663,13 @@ const Dashboard = () => {
               </div>
               
               <div className="flex justify-end mt-4">
-                <Link to={`/profile/${user.id}/edit`}>
-                  <Button variant="outline" size="sm">
-                    Complete Profile
-                  </Button>
-                </Link>
+                <EditProfileModal 
+                  userId={user.id} 
+                  onSuccess={() => {
+                    queryClient.invalidateQueries({ queryKey: ['profile', user.id] });
+                  }}
+                  buttonText="Complete Profile"
+                />
               </div>
             </GlassMorphism>
           </div>
@@ -887,11 +890,6 @@ const Dashboard = () => {
                     </div>
                   </motion.div>
                 ))}
-              </div>
-              <div className="mt-4 text-center">
-                <Button variant="outline" className="mt-2">
-                  <Link to="/dashboard/recommendations">View All Recommendations</Link>
-                </Button>
               </div>
             </GlassMorphism>
           </div>
