@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +8,9 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { toast } from "@/components/ui/use-toast";
 
 const SettingsPage = () => {
-  const [darkMode, setDarkMode] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
   const [glassUI, setGlassUI] = useState(true);
   const [compact, setCompact] = useState(false);
   const [username, setUsername] = useState("John Doe");
@@ -39,7 +42,10 @@ const SettingsPage = () => {
         <h2 className="text-lg font-semibold">Appearance</h2>
         <div className="flex items-center justify-between">
           <span>Dark Mode</span>
-          <Switch checked={darkMode} onCheckedChange={setDarkMode} />
+          <Switch
+            checked={mounted && theme === "dark"}
+            onCheckedChange={(value) => setTheme(value ? "dark" : "light")}
+          />
         </div>
         <div className="flex items-center justify-between">
           <span>Glassmorphism UI</span>
@@ -138,7 +144,7 @@ const SettingsPage = () => {
           Delete Account
         </Button>
         <Button variant="secondary" onClick={() => {
-          setDarkMode(false);
+          setTheme("system");
           setCompact(false);
           setGlassUI(true);
           setPrivateProfile(false);
