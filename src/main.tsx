@@ -33,14 +33,12 @@ console.log('Starting to render React application');
 
 try {
   ReactDOM.createRoot(document.getElementById('root')!).render(
-    <React.StrictMode>
-      <BrowserRouter>
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-          <App />
-          <Toaster />
-        </ThemeProvider>
-      </BrowserRouter>
-    </React.StrictMode>
+    <BrowserRouter>
+      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <App />
+        <Toaster />
+      </ThemeProvider>
+    </BrowserRouter>
   );
   console.log('React application rendered successfully');
 } catch (error) {
