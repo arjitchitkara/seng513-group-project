@@ -382,7 +382,7 @@ const ModeratorDashboard = () => {
                 <span>Rejected Documents</span>
               </Link>
               <Link
-                to="/moderator/settings"
+                to="/moderator-dashboard/settings"
                 className="flex items-center space-x-3 p-3 rounded-lg hover:bg-muted transition-colors"
               >
                 <Settings className="h-4 w-4" />
