@@ -1,10 +1,12 @@
-FROM node:20-alpine as build
+FROM node:20 AS build
 
 WORKDIR /app
 
-# Copy package files and install dependencies
-COPY package.json package-lock.json ./
-RUN npm ci
+# Copy package.json first
+COPY package.json ./
+
+# Use npm install instead of npm ci and without the package-lock.json
+RUN npm install
 
 # Copy project files
 COPY . .
@@ -12,6 +14,9 @@ COPY . .
 # Create .env file for the build (will be replaced with env vars at runtime)
 RUN touch .env && \
     echo "VITE_API_URL=http://localhost:3001" >> .env
+
+# Disable SWC and use esbuild instead
+ENV VITE_DISABLE_SWC=true
 
 # Build the application
 RUN npm run build
