@@ -20,7 +20,12 @@ export async function getProfile(userId: string) {
         id,
         userId,
         bio,
-        avatar
+        avatar,
+        location,
+        website,
+        university,
+        field,
+        degree
       )
     `)
     .eq('id', userId)

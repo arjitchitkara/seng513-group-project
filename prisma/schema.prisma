@@ -10,7 +10,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DIRECT_URL")
 }
 
 model User {
@@ -33,6 +33,11 @@ model Profile {
   userId        String         @unique
   bio           String?
   avatar        String?
+  location      String?
+  website       String?
+  university    String?
+  field         String?
+  degree        String?
   user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 

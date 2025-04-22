@@ -1,5 +1,5 @@
 // ProfilePage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -22,21 +22,146 @@ import {
   Calendar,
   CheckCircle,
   FileText,
-  BookmarkIcon
+  BookmarkIcon,
+  MapPin,
+  Mail,
+  School,
+  Award,
+  Share2,
+  Grid,
+  List,
+  Filter,
+  Download,
+  Bookmark,
+  User,
+  Home,
+  Laptop,
+  Book,
+  Quote,
+  Lightbulb
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import EditProfileModal from './EditProfileModal';
 import NotFound from '../NotFound';
 
 const ONE_HOUR = 1000 * 60 * 60;
 const TWENTY_FOUR_HOURS = ONE_HOUR * 24;
 
+// List of motivational quotes and tips
+const MOTIVATIONAL_CONTENT = [
+  { 
+    type: "quote",
+    content: "The beautiful thing about learning is that no one can take it away from you.",
+    author: "B.B. King"
+  },
+  { 
+    type: "quote",
+    content: "Education is not the filling of a pail, but the lighting of a fire.",
+    author: "William Butler Yeats"
+  },
+  { 
+    type: "quote",
+    content: "The more that you read, the more things you will know. The more that you learn, the more places you'll go.",
+    author: "Dr. Seuss"
+  },
+  { 
+    type: "quote",
+    content: "Live as if you were to die tomorrow. Learn as if you were to live forever.",
+    author: "Mahatma Gandhi"
+  },
+  { 
+    type: "quote",
+    content: "Education is the passport to the future, for tomorrow belongs to those who prepare for it today.",
+    author: "Malcolm X"
+  },
+  { 
+    type: "tip",
+    content: "Study in short, focused sessions of 25-30 minutes with 5-minute breaks in between.",
+    title: "Pomodoro Technique"
+  },
+  { 
+    type: "tip",
+    content: "Explain concepts to yourself or others to identify gaps in your understanding.",
+    title: "The Feynman Technique"
+  },
+  { 
+    type: "tip",
+    content: "Review your notes within 24 hours of taking them to significantly improve retention.",
+    title: "Spaced Repetition"
+  },
+  { 
+    type: "tip",
+    content: "Organize study materials using colors, diagrams, and mind maps to engage multiple parts of your brain.",
+    title: "Visual Learning"
+  },
+  { 
+    type: "tip",
+    content: "Set specific, measurable, achievable, relevant, and time-bound goals for your studies.",
+    title: "SMART Goals"
+  },
+  { 
+    type: "quote",
+    content: "The expert in anything was once a beginner.",
+    author: "Helen Hayes"
+  },
+  { 
+    type: "quote",
+    content: "Success is no accident. It is hard work, perseverance, learning, studying, sacrifice and most of all, love of what you are doing.",
+    author: "Pelé"
+  },
+  { 
+    type: "quote",
+    content: "The mind is not a vessel to be filled, but a fire to be kindled.",
+    author: "Plutarch"
+  },
+  { 
+    type: "quote",
+    content: "Your education is a dress rehearsal for a life that is yours to lead.",
+    author: "Nora Ephron"
+  },
+  { 
+    type: "quote",
+    content: "Learning is not attained by chance, it must be sought for with ardor and attended to with diligence.",
+    author: "Abigail Adams"
+  },
+  { 
+    type: "tip",
+    content: "Listen to instrumental music or white noise to improve focus while studying.",
+    title: "Sound Environment"
+  },
+  { 
+    type: "tip",
+    content: "Take brief walks or do light exercises between study sessions to refresh your mind.",
+    title: "Physical Movement"
+  },
+  { 
+    type: "tip",
+    content: "Use active recall by closing your books and trying to remember key concepts.",
+    title: "Active Learning"
+  },
+  { 
+    type: "tip",
+    content: "Stay hydrated and maintain a healthy diet to optimize brain function during study sessions.",
+    title: "Brain Health"
+  },
+  { 
+    type: "tip",
+    content: "Join or form study groups to discuss material and teach each other difficult concepts.",
+    title: "Collaborative Learning"
+  }
+];
+
 const ProfilePage: React.FC = () => {
   const { userId } = useParams<{ userId: string }>();
-  const [searchQuery, setSearchQuery] = useState('');
   const queryClient = useQueryClient();
-  const { user: user } = useAuth();
+  const { user: currentUser } = useAuth();
+  const [randomContent, setRandomContent] = useState(MOTIVATIONAL_CONTENT[0]);
 
-  const [tab, setTab] = useState<'documents' | 'bookmarks' | 'courses'>('documents');
+  // Get a random quote or tip when the component mounts
+  useEffect(() => {
+    const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_CONTENT.length);
+    setRandomContent(MOTIVATIONAL_CONTENT[randomIndex]);
+  }, []);
 
   const queryOptions = {
     staleTime: ONE_HOUR,
@@ -52,197 +177,178 @@ const ProfilePage: React.FC = () => {
     ...queryOptions,
   });
 
-  const { data: docs = [],isLoading: loadingDocs} = useQuery({
-    queryKey: ['documents', userId],
-    queryFn: () => getDocuments(userId),
-    ...queryOptions,
-  });
-
-  const { data: bms = [],   isLoading: loadingBms} = useQuery({
-    queryKey: ['bookmarks', userId],
-    queryFn: () => getBookmarks(userId),
-    ...queryOptions,
-  });
-
-  const { data: enrolls = [], isLoading: loadingEnrs } = useQuery({
-    queryKey: ['enrollments', userId],
-    queryFn: () => getEnrollments(userId),
-    ...queryOptions,
-  });
-
-  if (loadingProfile || loadingDocs || loadingBms || loadingEnrs) {
+  if (loadingProfile) {
     return <ProfileHeaderSkeleton />;
   }
   if (!profile) {
     return <NotFound />;
   }
   
-  
-  const fullName  = profile.fullName || user.user_metadata?.full_name || 'User';
+  const isCurrentUser = currentUser?.id === userId;
+  const fullName  = profile.fullName || currentUser?.user_metadata?.full_name || 'User';
   const firstName = fullName.split(' ')[0];
-
-  const bookmarks = bms.map((row) => row.document);
-  const courses   = enrolls.map((row) => row.course);
 
   const joinedDate = new Date(profile.createdAt || '').toLocaleDateString(
     'default',
     { month: 'long', year: 'numeric' }
   );
 
-
   return (
-    <div className="min-h-screen bg-background/20">
+    <div className="min-h-screen bg-gradient-to-br from-background to-secondary/20">
       {/* Page Header */}
       <header className="bg-background/50 backdrop-blur-sm sticky top-0 z-30 border-b border-border/50">
         <div className="px-6 py-4 flex items-center justify-between">
-          <form onSubmit={(e) => e.preventDefault()} className="relative hidden md:block w-96">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <input
-              type="text"
-              placeholder="Search by course, university, topic..."
-              className="w-full py-2 pl-10 pr-4 rounded-full bg-secondary/50 border border-border/50 focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary text-sm"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </form>
+          <Link to="/dashboard" className="flex items-center space-x-2">
+            <Home className="h-5 w-5 text-primary" />
+            <span className="font-medium">Dashboard</span>
+          </Link>
+          
           <div className="flex items-center space-x-4">
-            <button className="p-2 rounded-full bg-secondary/70 hover:bg-secondary relative">
-              <Bell className="h-5 w-5 text-foreground/70" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full">3</span>
-            </button>
-            <button className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Avatar className="w-8 h-8 p-0">
-                  {profile?.profile?.avatar ? (
-                    <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
-                  ) : (
-                    <AvatarFallback>
-                      <UserIcon className="h-8 w- text-primary" />
-                    </AvatarFallback>
-                  )}
-                </Avatar>
-              </div>
-              <span className="text-sm font-medium">{firstName}</span>
-            </button>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="flex items-center space-x-2"
+              onClick={() => window.navigator.share?.({
+                title: `${fullName}'s Profile`,
+                url: window.location.href
+              }) || alert('Share link copied!')}
+            >
+              <Share2 className="h-4 w-4" />
+              <span className="hidden md:inline">Share Profile</span>
+            </Button>
+            
+            {isCurrentUser && (
+              <EditProfileModal
+                onSuccess={() => {
+                  queryClient.invalidateQueries({ queryKey: ['profile', userId] });
+                }}
+                userId={userId}
+              />
+            )}
           </div>
         </div>
       </header>
 
-      <div className="p-6">
+      <div className="max-w-6xl mx-auto p-6">
         {/* Profile Header */}
-        <GlassMorphism className="p-8 mb-8 bg-primary/20" intensity="medium">
-          <div className="flex flex-col items-center text-center space-y-3">
-            <Avatar className="w-28 h-28">
-              {profile?.profile?.avatar ? (
-                <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
-              ) : (
-                <AvatarFallback>{profile.fullName.charAt(0)}</AvatarFallback>
-              )}
-            </Avatar>
-            <h1 className="text-3xl font-bold text-foreground">{profile.fullName}</h1>
-            <p className="text-xs text-muted-foreground capitalize">{profile.role.toLowerCase()}</p>
-            <div className="flex items-center space-x-3 text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>Joined {joinedDate}</span>
+        <GlassMorphism className="p-8 mb-8 relative overflow-hidden" intensity="medium">
+          {/* Background pattern */}
+          <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-r from-primary/20 to-secondary/20 opacity-50"></div>
+          
+          <div className="relative flex flex-col md:flex-row items-center md:items-start gap-8">
+            <div className="flex flex-col items-center text-center md:text-left space-y-3">
+              <Avatar className="w-32 h-32 border-4 border-background shadow-xl">
+                {profile?.profile?.avatar ? (
+                  <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
+                ) : (
+                  <AvatarFallback className="text-4xl">{profile.fullName.charAt(0)}</AvatarFallback>
+                )}
+              </Avatar>
+              <div>
+                <h1 className="text-3xl font-bold text-foreground">{profile.fullName}</h1>
+                <p className="text-sm text-muted-foreground capitalize">{profile.role.toLowerCase()}</p>
+              </div>
+              <div className="flex flex-wrap gap-2 justify-center md:justify-start">
+                {isCurrentUser ? (
+                  <>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <User className="h-3 w-3" />
+                      <span>You</span>
+                    </Badge>
+                  </>
+                ) : (
+                  <Button size="sm" variant="default">
+                    Follow
+                  </Button>
+                )}
+                <Badge variant="outline" className="flex items-center gap-1">
+                  <Calendar className="h-3 w-3" />
+                  <span>Joined {joinedDate}</span>
+                </Badge>
+                
+                {profile?.profile?.location && (
+                  <Badge variant="outline" className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    <span>{profile.profile.location}</span>
+                  </Badge>
+                )}
+              </div>
             </div>
-            {profile?.profile?.bio && <p className="text-foreground/80 max-w-xl">{profile.profile.bio}</p>}
             
-            <div className="flex gap-4 mt-4">
-              <EditProfileModal
-                onSuccess={() => {
-                  queryClient.invalidateQueries({ queryKey: ['profile', userId] });
-                  queryClient.invalidateQueries({ queryKey: ['document', userId] });
-                  queryClient.invalidateQueries({ queryKey: ['bookmarks', userId] });
-                  queryClient.invalidateQueries({ queryKey: ['enrollments', userId] });
-                } } userId={userId}/>
-                <Link to="/dashboard">
-                  <AnimatedButton hoverLift ripple gradient>
-                    Dashboard
-                  </AnimatedButton>
-                </Link>
+            <div className="flex-1 w-full md:w-auto">
+              <div className="mb-4 max-w-2xl">
+                {profile?.profile?.bio ? (
+                  <p className="text-foreground/80">{profile.profile.bio}</p>
+                ) : (
+                  <p className="text-muted-foreground italic">
+                    {isCurrentUser ? "Add a bio to tell others about yourself." : "This user hasn't added a bio yet."}
+                  </p>
+                )}
+              </div>
+              
+              {/* Contact Information */}
+              {(profile?.email || profile?.profile?.website || profile?.profile?.university) && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+                  {profile?.email && (
+                    <div className="flex items-center gap-2">
+                      <Mail className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{profile.email}</span>
+                    </div>
+                  )}
+                  {profile?.profile?.website && (
+                    <div className="flex items-center gap-2">
+                      <LinkIcon className="h-4 w-4 text-muted-foreground" />
+                      <a href={profile.profile.website} target="_blank" rel="noopener noreferrer" 
+                         className="text-sm text-primary hover:underline">{profile.profile.website}</a>
+                    </div>
+                  )}
+                  {profile?.profile?.university && (
+                    <div className="flex items-center gap-2">
+                      <School className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">{profile.profile.university}</span>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </GlassMorphism>
 
-        {/* Tabs */}
-        <div className="border-b border-border/50 mb-6">
-          <nav className="flex justify-center space-x-6">
-            {['documents', 'bookmarks', 'courses'].map((t) => (
-              <button
-                key={t}
-                onClick={() => setTab(t as typeof tab)}
-                className={`pb-2 font-medium transition-colors ${
-                  tab === t
-                    ? 'border-b-2 border-primary text-primary'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Lists */}
-        <div className="space-y-6">
-          {/* Documents */}
-          {tab === 'documents' && (docs.length ? docs.map((doc) => {
-            const course = courses.find((c) => c.id === doc.courseId);
-            return (
-              <GlassMorphism key={doc.id} className="p-4" intensity="light">
-                <div className="flex items-center space-x-4">
-                  <div className="p-3 rounded-md bg-primary/10">
-                    <FileText className="h-6 w-6 text-primary" />
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="font-medium text-foreground">{doc.title}</h3>
-                    <div className="text-xs text-muted-foreground mt-1 flex flex-wrap gap-2">
-                      <span>{course?.title}</span>
-                      <span>• {doc.pages} pages</span>
-                      <span>• {new Date(doc.createdAt).toLocaleDateString()}</span>
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                        doc.status === 'APPROVED'
-                          ? 'bg-green-100 text-green-800'
-                          : doc.status === 'PENDING'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}
-                      >
-                        {doc.status === 'APPROVED' && <CheckCircle className="h-3 w-3 mr-1" />}
-                        {doc.status.charAt(0) + doc.status.slice(1).toLowerCase()}
-                      </span>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">View</Button>
+        {/* Motivational Content */}
+        <GlassMorphism className="p-8 text-center" intensity="light">
+          <div className="max-w-3xl mx-auto">
+            {randomContent.type === "quote" ? (
+              <>
+                <div className="mb-6 flex justify-center">
+                  <Quote className="h-12 w-12 text-primary/40" />
                 </div>
-              </GlassMorphism>
-            );
-          }) : <p>No documents uploaded.</p>)}
-
-          {/* Bookmarks */}
-          {tab === 'bookmarks' && (bookmarks.length ? bookmarks.map((doc) => doc && (
-            <GlassMorphism key={doc.id} className="p-4" intensity="light">
-              <div className="flex justify-between items-center">
-                <h3 className="font-medium text-foreground">{doc.title}</h3>
-                <Button variant="outline" size="sm"><BookmarkIcon className="h-4 w-4" /></Button>
-              </div>
-            </GlassMorphism>
-          )) : <p>No bookmarks yet.</p>)}
-
-          {/* Courses */}
-          {tab === 'courses' && (courses.length ? courses.map((course) => course && (
-            <GlassMorphism key={course.id} className="p-4" intensity="light">
-              <div className="flex items-center space-x-4">
-                {course.imageSrc ? <img src={course.imageSrc} alt={course.title} className="w-10 h-10 rounded object-cover" /> : <div className="p-3 rounded-md bg-secondary/10"><BookmarkIcon className="h-6 w-6 text-secondary" /></div>}
-                <div className="flex-1">
-                  <h3 className="font-medium text-foreground">{course.title}</h3>
-                  <p className="text-xs text-muted-foreground mt-1">{course.subject}</p>
+                <blockquote className="text-xl md:text-2xl font-medium text-foreground italic mb-4">
+                  "{randomContent.content}"
+                </blockquote>
+                <cite className="text-sm text-muted-foreground">— {randomContent.author}</cite>
+              </>
+            ) : (
+              <>
+                <div className="mb-6 flex justify-center">
+                  <Lightbulb className="h-12 w-12 text-primary/40" />
                 </div>
-                <Button variant="outline" size="sm">Go</Button>
-              </div>
-            </GlassMorphism>
-          )) : <p>Not enrolled in any courses.</p>)}
-        </div>
+                <h3 className="text-lg font-medium text-primary mb-2">{randomContent.title}</h3>
+                <p className="text-foreground mb-4">{randomContent.content}</p>
+              </>
+            )}
+            
+            <Button 
+              variant="ghost" 
+              className="mt-6"
+              onClick={() => {
+                const randomIndex = Math.floor(Math.random() * MOTIVATIONAL_CONTENT.length);
+                setRandomContent(MOTIVATIONAL_CONTENT[randomIndex]);
+              }}
+            >
+              Show Another
+            </Button>
+          </div>
+        </GlassMorphism>
       </div>
     </div>
   );

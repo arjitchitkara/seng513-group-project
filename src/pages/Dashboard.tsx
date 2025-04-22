@@ -27,6 +27,7 @@ import {
   Lightbulb,
   ClipboardList,
   RefreshCw,
+  ChevronDown,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -413,7 +414,6 @@ const Dashboard = () => {
               {[
                 { name: 'My Documents', icon: FileText, path: '/my-documents' },
                 { name: 'Bookmarks', icon: Bookmark, path: '/bookmarks' },
-                { name: 'Settings', icon: Settings, path: '/settings' },
                 { name: 'Upload Document', icon: Upload, path: '/upload-document' },
               ].map((item) => (
                 <Link
@@ -429,13 +429,10 @@ const Dashboard = () => {
           </div>
 
           <div className="mt-auto p-6 border-t border-border/50">
-            <button 
-              onClick={signOut}
-              className="flex items-center space-x-3 w-full p-3 rounded-md text-foreground/70 hover:bg-secondary hover:text-foreground transition-all"
-            >
-              <LogOut className="h-5 w-5" />
-              <span>Sign Out</span>
-            </button>
+            <div className="text-xs text-muted-foreground text-center">
+              <p className="mb-1">eduVAULT</p>
+              <p>© {new Date().getFullYear()} All rights reserved</p>
+            </div>
           </div>
         </div>
       </aside>
@@ -465,25 +462,86 @@ const Dashboard = () => {
             </form>
 
             <div className="flex items-center space-x-4">
-
-              <Link
-              to={`/profile/${user.id}`}
-              className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary"
-            >
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
-                <Avatar className="w-8 h-8 p-0">
-                  {profile?.profile?.avatar ? (
-                    <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
-                  ) : (
-                    <AvatarFallback>
-                      <UserIcon className="h-8 w-8 text-primary" />
-                    </AvatarFallback>
-                  )}
-                </Avatar>
+              <div className="relative group">
+                <button className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary transition-colors">
+                  <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Avatar className="w-8 h-8 p-0">
+                      {profile?.profile?.avatar ? (
+                        <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
+                      ) : (
+                        <AvatarFallback>
+                          <UserIcon className="h-5 w-5 text-primary" />
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                  </div>
+                  <span className="text-sm font-medium">{userName}</span>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                </button>
+                
+                {/* Dropdown menu */}
+                <div className="absolute right-0 mt-2 w-64 py-2 bg-background rounded-md shadow-lg border border-border/50 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-150 z-50">
+                  {/* Profile Preview Section */}
+                  <div className="px-4 py-3 border-b border-border/50">
+                    <div className="flex items-start">
+                      <Avatar className="w-12 h-12 mr-3">
+                        {profile?.profile?.avatar ? (
+                          <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
+                        ) : (
+                          <AvatarFallback>
+                            <UserIcon className="h-6 w-6 text-primary" />
+                          </AvatarFallback>
+                        )}
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{fullName}</div>
+                        <div className="text-xs text-muted-foreground mb-1">{user?.email}</div>
+                        <div className="flex items-center">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                            {userRole}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Profile Completion */}
+                    <div className="mt-3">
+                      <div className="flex justify-between text-xs mb-1">
+                        <span>Profile completion</span>
+                        <span className="font-medium">75%</span>
+                      </div>
+                      <div className="w-full bg-secondary/50 rounded-full h-1.5">
+                        <div className="bg-primary h-1.5 rounded-full" style={{ width: '75%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Actions */}
+                  <div className="px-2 py-1">
+                    <Link to={`/profile/${user.id}`} className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md">
+                      <User className="h-4 w-4 mr-2" />
+                      View Profile
+                    </Link>
+                    <Link to="/settings/account" className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Account Settings
+                    </Link>
+                    <Link to="/settings/privacy" className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-secondary/50 rounded-md">
+                      <Settings className="h-4 w-4 mr-2" />
+                      Privacy Settings
+                    </Link>
+                  </div>
+                  
+                  <hr className="my-1 border-border/50" />
+                  <button 
+                    onClick={signOut}
+                    className="flex items-center px-4 py-2 text-sm text-foreground hover:bg-secondary/50 w-full text-left"
+                  >
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </button>
+                </div>
               </div>
-              <span className="text-sm font-medium">{userName}</span>
-            </Link>
-
             </div>
           </div>
         </header>
@@ -495,6 +553,75 @@ const Dashboard = () => {
             <p className="text-muted-foreground">Here's an overview of your academic resources and activities.</p>
           </div>
 
+          {/* Profile Completion Section */}
+          <div className="mb-6">
+            <GlassMorphism className="p-6" intensity="light">
+              <div className="flex flex-wrap md:flex-nowrap items-start gap-6">
+                <div className="w-full md:w-1/3">
+                  <div className="flex items-center space-x-4">
+                    <Avatar className="w-14 h-14">
+                      {profile?.profile?.avatar ? (
+                        <AvatarImage src={profile.profile.avatar} alt={profile.fullName} />
+                      ) : (
+                        <AvatarFallback>
+                          <UserIcon className="h-8 w-8 text-primary" />
+                        </AvatarFallback>
+                      )}
+                    </Avatar>
+                    <div>
+                      <h3 className="font-medium text-lg">{fullName}</h3>
+                      <p className="text-sm text-muted-foreground">{user?.email}</p>
+                      <div className="flex mt-1">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary/10 text-primary">
+                          {userRole}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="w-full md:w-2/3 space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Complete your profile to unlock all features</span>
+                      <span className="font-medium">75% Complete</span>
+                    </div>
+                    <div className="w-full bg-secondary/50 rounded-full h-2.5">
+                      <div className="bg-primary h-2.5 rounded-full" style={{ width: '75%' }}></div>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+                    <div className="text-center p-2 bg-secondary/20 rounded-md">
+                      <p className="text-lg font-bold">{recentDocuments.length || 0}</p>
+                      <p className="text-xs text-muted-foreground">Documents</p>
+                    </div>
+                    <div className="text-center p-2 bg-secondary/20 rounded-md">
+                      <p className="text-lg font-bold">{Object.values(bookmarkedDocs).filter(Boolean).length || 0}</p>
+                      <p className="text-xs text-muted-foreground">Bookmarks</p>
+                    </div>
+                    <div className="text-center p-2 bg-secondary/20 rounded-md">
+                      <p className="text-lg font-bold">0</p>
+                      <p className="text-xs text-muted-foreground">Followers</p>
+                    </div>
+                    <div className="text-center p-2 bg-secondary/20 rounded-md">
+                      <p className="text-lg font-bold">0</p>
+                      <p className="text-xs text-muted-foreground">Following</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end mt-4">
+                <Link to={`/profile/${user.id}/edit`}>
+                  <Button variant="outline" size="sm">
+                    Complete Profile
+                  </Button>
+                </Link>
+              </div>
+            </GlassMorphism>
+          </div>
+          
           {/* Quick Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6 mb-6">
             {quickStats.map((stat) => (
@@ -755,7 +882,7 @@ const Dashboard = () => {
 
           {/* Additional Features/Sections */}
           <div className="mb-6">
-            <h2 className="text-xl font-semibold mb-6">Explore More</h2>
+            <h2 className="text-xl font-semibold mb-6">Explore More <span className="text-sm font-normal text-primary ml-2">(Coming Soon)</span></h2>
             <GlassMorphism className="p-6" intensity="light">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {additionalSections.map((section, index) => (
@@ -764,17 +891,18 @@ const Dashboard = () => {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: index * 0.1 }}
-                    className="border border-border/50 rounded-lg p-4 hover:bg-secondary/20 transition-colors"
+                    className="border border-border/50 rounded-lg p-4 hover:bg-secondary/20 transition-colors cursor-not-allowed opacity-80"
                   >
-                    <Link to={section.link} className="flex items-start space-x-3">
+                    <div className="flex items-start space-x-3">
                       <section.icon className="h-6 w-6 text-primary mt-0.5" />
                       <div>
                         <h3 className="font-medium mb-1">{section.title}</h3>
                         <p className="text-sm text-muted-foreground">
                           {section.description}
                         </p>
+                        <p className="text-xs text-primary mt-2">Coming soon</p>
                       </div>
-                    </Link>
+                    </div>
                   </motion.div>
                 ))}
               </div>

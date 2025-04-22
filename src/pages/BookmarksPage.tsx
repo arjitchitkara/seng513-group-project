@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { GlassMorphism } from '@/components/ui/GlassMorphism';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth';
-import { Search, Bookmark, FileText, CheckCircle, Bell, User as UserIcon, X} from 'lucide-react';
+import { Search, Bookmark, FileText, CheckCircle, User as UserIcon, X} from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {getBookmarks, getProfile, removeBookmark} from '../lib/supabase-helpers';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -131,16 +131,6 @@ const BookmarksPage: React.FC = () => {
 
           {/* User / notifications */}
           <div className="flex items-center space-x-4">
-            <Link
-              to="/notifications"
-              className="p-2 rounded-full bg-secondary/70 hover:bg-secondary relative"
-            >
-              <Bell className="h-5 w-5 text-foreground/70" />
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs px-1 rounded-full">
-                3
-              </span>
-            </Link>
-
             <Link
               to={`/profile/${user?.id}`}
               className="flex items-center space-x-2 p-1 pl-2 pr-3 rounded-full bg-secondary/70 hover:bg-secondary"

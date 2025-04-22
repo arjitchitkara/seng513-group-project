@@ -15,6 +15,8 @@ import BookmarksPage from "./pages/BookmarksPage";
 
 // New Pages
 import SettingsPage from "./pages/SettingsPage";
+import AccountSettingsPage from "./pages/AccountSettingsPage";
+import PrivacySettingsPage from "./pages/PrivacySettingsPage";
 import RecentActivityPage from "./pages/RecentActivityPage";
 import UploadDocumentPage from "./pages/UploadDocumentPage";
 import MyDocumentsPage from "./pages/MyDocumentsPage";
@@ -196,6 +198,40 @@ const App = () => (
                 >
                   <ProtectedRoute>
                     <SettingsPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/settings/account" 
+              element={
+                <motion.div
+                  key="account-settings"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <AccountSettingsPage />
+                  </ProtectedRoute>
+                </motion.div>
+              } 
+            />
+            <Route 
+              path="/settings/privacy" 
+              element={
+                <motion.div
+                  key="privacy-settings"
+                  initial="initial"
+                  animate="animate"
+                  exit="exit"
+                  variants={pageVariants}
+                  className="min-h-screen"
+                >
+                  <ProtectedRoute>
+                    <PrivacySettingsPage />
                   </ProtectedRoute>
                 </motion.div>
               } 
