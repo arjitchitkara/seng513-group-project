@@ -2,13 +2,15 @@
 
 ## Setup and Running the Application
 
-1.Install dependencies:
+### Running Locally
+
+1. Install dependencies:
 
 ```bash
 npm install
 ```
 
-2.Start both the frontend and API server:
+1. Start both the frontend and API server:
 
 ```bash
 npm run dev:all
@@ -19,6 +21,39 @@ This will concurrently start:
 - The React frontend on <http://localhost:8080>
 - The API server on <http://localhost:3001>
 
+### Running with Docker
+
+1. Make sure Docker and Docker Compose are installed on your system.
+
+1. Create a `.env` file with the necessary environment variables:
+   - Database connection variables (`DATABASE_URL`, `DIRECT_URL`)
+   - Supabase variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
+   - Cloudflare R2 variables (if using for storage)
+   - Cloudinary variables (if using for images)
+
+1. Run the application using Docker Compose:
+
+```bash
+docker-compose up
+```
+
+This will:
+
+- Build and start the frontend container (accessible at <http://localhost:80>)
+- Build and start the backend API container (accessible at <http://localhost:3001>)
+
+1. To run in detached mode:
+
+```bash
+docker-compose up -d
+```
+
+1. To stop the containers:
+
+```bash
+docker-compose down
+```
+
 ## Scripts
 
 - `npm run dev` - Start only the frontend
@@ -26,12 +61,3 @@ This will concurrently start:
 - `npm run dev:all` - Start both frontend and API
 - `npm run db:seed` - Seed the database with initial data
 - `npm run db:studio` - Open Prisma Studio for database management
-
-
-todo:
-1 add support for pptx and docx maybe use office viewer.
-2 UI for dashboard is janky fix that
-3 add the my documents page
-4 change to course name feature logic to match with course hero.
-5 dockerise both the frontend and the backend.
-6 check for whats left. 
