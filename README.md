@@ -28,8 +28,8 @@ This will concurrently start:
 1. Create a `.env` file with the necessary environment variables:
    - Database connection variables (`DATABASE_URL`, `DIRECT_URL`)
    - Supabase variables (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`)
-   - Cloudflare R2 variables (if using for storage)
-   - Cloudinary variables (if using for images)
+   - Cloudflare R2 variables
+   - Cloudinary variables
 
 1. Run the application using Docker Compose:
 
@@ -39,7 +39,7 @@ docker-compose up
 
 This will:
 
-- Build and start the frontend container (accessible at <http://localhost:80>)
+- Build and start the frontend container (accessible at <http://localhost:8080>)
 - Build and start the backend API container (accessible at <http://localhost:3001>)
 
 1. To run in detached mode:
